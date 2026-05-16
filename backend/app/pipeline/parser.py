@@ -4,9 +4,9 @@ import csv
 import io
 from pathlib import Path
 
-import pytesseract
-from PIL import Image
 from pypdf import PdfReader
+
+_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".tiff"}
 
 
 def parse(filename: str, content: bytes) -> str:
@@ -15,7 +15,7 @@ def parse(filename: str, content: bytes) -> str:
         return _parse_pdf(content)
     if ext == ".csv":
         return _parse_csv(content)
-    if ext in {".png", ".jpg", ".jpeg", ".webp", ".tiff"}:
+    if ext in _IMAGE_EXTS:
         return _parse_image(content)
     raise ValueError(f"Unsupported file type: {ext}")
 
@@ -34,5 +34,13 @@ def _parse_csv(content: bytes) -> str:
 
 
 def _parse_image(content: bytes) -> str:
-    image = Image.open(io.BytesIO(content))
-    return pytesseract.image_to_string(image).strip()
+    try:
+        import pytesseract
+        from PIL import Image
+        image = Image.open(io.BytesIO(content))
+        return pytesseract.image_to_string(image).strip()
+    except Exception:
+        raise ValueError(
+            "Image parsing requires Tesseract OCR, which is not available in this environment. "
+            "Upload a PDF or CSV instead."
+        )
