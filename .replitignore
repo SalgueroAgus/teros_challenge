@@ -3,3 +3,7 @@
 
 # No need to store the pnpm store twice.
 .local
+
+# Backend runs on AWS — exclude local server artifacts from deployment
+artifacts/api-server
+artifacts/mockup-sandbox
