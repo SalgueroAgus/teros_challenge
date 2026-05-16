@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import type { Message } from '@/types'
+import { uploadDocument, queryDocuments } from '@/lib/api'
 import { MessageBubble, LoadingBubble } from './MessageBubble'
 import { ChatInput } from './ChatInput'
 import { SuggestionCards } from './SuggestionCards'
@@ -34,6 +35,8 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
     const content = (contentOverride ?? inputValue).trim()
     if (!content || isLoading) return
 
+    const fileToUpload = attachedFile
+
     const userMessage: Message = {
       id: generateId(),
       role: 'user',
@@ -46,30 +49,33 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
     setAttachedFile(null)
     setIsLoading(true)
 
-    // Log the request (API not wired yet)
-    console.log('[FinSight] Sending query:', {
-      content,
-      activeDocumentId,
-      attachedFile: attachedFile?.name ?? null,
-    })
-
-    // Mock response
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1200))
+      // Upload file first if one is attached
+      let documentId = activeDocumentId
+      if (fileToUpload) {
+        const uploaded = await uploadDocument(fileToUpload)
+        documentId = uploaded.document_id
+      }
 
-      const mockResponses = [
-        "I'm analyzing your financial data. Once you upload your documents, I can provide detailed insights about your spending patterns and financial health.",
-        "That's a great question! Upload your bank statements or financial documents and I'll break down the numbers for you.",
-        "I can help with that. To get accurate figures, please upload your financial documents through the paperclip icon below.",
-      ]
+      // Query the RAG pipeline
+      const { answer, sources } = await queryDocuments(content, documentId)
 
       const assistantMessage: Message = {
         id: generateId(),
         role: 'assistant',
-        content: mockResponses[Math.floor(Math.random() * mockResponses.length)],
+        content: answer,
         timestamp: new Date(),
+        sources,
       }
 
+      setMessages((prev) => [...prev, assistantMessage])
+    } catch (err) {
+      const assistantMessage: Message = {
+        id: generateId(),
+        role: 'assistant',
+        content: err instanceof Error ? err.message : 'Something went wrong. Please try again.',
+        timestamp: new Date(),
+      }
       setMessages((prev) => [...prev, assistantMessage])
     } finally {
       setIsLoading(false)
@@ -81,15 +87,10 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
   return (
     <div className="flex flex-col h-full bg-[#F0F4FF]">
       {/* Message area */}
-      <div
-        ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto"
-      >
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
         {!hasMessages ? (
           <div className="flex items-center justify-center h-full min-h-0">
-            <SuggestionCards
-              onSelect={(text) => handleSend(text)}
-            />
+            <SuggestionCards onSelect={(text) => handleSend(text)} />
           </div>
         ) : (
           <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
@@ -102,7 +103,7 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
         )}
       </div>
 
-      {/* Input bar — fixed at bottom */}
+      {/* Input bar */}
       <div className="flex-shrink-0 pb-5 pt-3 px-0">
         <ChatInput
           value={inputValue}

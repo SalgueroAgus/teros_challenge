@@ -8,9 +8,16 @@ export interface Document {
   uploadedAt: string
 }
 
+export interface Source {
+  chunk_id: string
+  content: string
+  similarity: number
+}
+
 export interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+  sources?: Source[]
 }
