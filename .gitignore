@@ -63,3 +63,12 @@ __pycache__/
 venv/
 *.egg-info/
 .pytest_cache/
+
+# Supabase
+backend/supabase/.temp/
+
+# UV / Python virtualenvs
+.venv/
+
+
+/backend/tests/*.py
