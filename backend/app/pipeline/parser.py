@@ -12,12 +12,15 @@ _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".tiff"}
 def parse(filename: str, content: bytes) -> str:
     ext = Path(filename).suffix.lower()
     if ext == ".pdf":
-        return _parse_pdf(content)
-    if ext == ".csv":
-        return _parse_csv(content)
-    if ext in _IMAGE_EXTS:
-        return _parse_image(content)
-    raise ValueError(f"Unsupported file type: {ext}")
+        text = _parse_pdf(content)
+    elif ext == ".csv":
+        text = _parse_csv(content)
+    elif ext in _IMAGE_EXTS:
+        text = _parse_image(content)
+    else:
+        raise ValueError(f"Unsupported file type: {ext}")
+    # PostgreSQL rejects null bytes in text columns; strip them from all sources
+    return text.replace("\x00", "")
 
 
 def _parse_pdf(content: bytes) -> str:
