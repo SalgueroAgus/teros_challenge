@@ -1,36 +1,35 @@
-# [Project name]
+# Next.js App
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A Next.js + TypeScript + Tailwind CSS starter project.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/next-app run dev` — run the Next.js dev server (port 3000)
+- `pnpm --filter @workspace/next-app run build` — build for production
+- `pnpm --filter @workspace/next-app run typecheck` — typecheck the Next.js app
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Framework: Next.js 15 (App Router)
+- Styling: Tailwind CSS v4
+- Build: Next.js built-in (esbuild + SWC)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/next-app/` — Next.js application
+- `artifacts/next-app/src/app/` — App Router pages and layouts
+- `artifacts/next-app/src/app/globals.css` — global styles (Tailwind v4 import)
+- `artifacts/next-app/next.config.ts` — Next.js configuration
+- `artifacts/next-app/postcss.config.mjs` — PostCSS config (Tailwind v4 via `@tailwindcss/postcss`)
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
-
-## Product
-
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Uses Tailwind CSS v4 (`@import "tailwindcss"` in CSS, no config file needed)
+- App Router (`src/app/`) is the default routing model
+- `@/*` path alias maps to `src/*`
 
 ## User preferences
 
@@ -38,7 +37,8 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Tailwind v4 uses `@import "tailwindcss"` in CSS — no `tailwind.config.ts` needed
+- Dev server binds to `0.0.0.0` so it's reachable through the Replit proxy
 
 ## Pointers
 

@@ -1,0 +1,25 @@
+kind = "web"
+previewPath = "/"
+title = "Next.js App"
+version = "1.0.0"
+id = "next-app-001"
+
+[[services]]
+localPort = 3000
+name = "Next.js App"
+paths = ["/"]
+
+[services.development]
+run = "pnpm --filter @workspace/next-app run dev"
+
+[services.production]
+
+[services.production.build]
+args = ["pnpm", "--filter", "@workspace/next-app", "run", "build"]
+
+[services.production.run]
+args = ["pnpm", "--filter", "@workspace/next-app", "run", "start"]
+
+[services.production.run.env]
+PORT = "3000"
+NODE_ENV = "production"
