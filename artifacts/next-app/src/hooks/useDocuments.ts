@@ -2,22 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import type { Document } from '@/types'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-
-async function fetchDocuments(): Promise<Document[]> {
-  if (!API_URL) {
-    return []
-  }
-  try {
-    const res = await fetch(`${API_URL}/documents`)
-    if (!res.ok) return []
-    const data = await res.json()
-    return Array.isArray(data) ? data : []
-  } catch {
-    return []
-  }
-}
+import { fetchDocuments } from '@/lib/api'
 
 export function useDocuments() {
   return useQuery<Document[]>({
