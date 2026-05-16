@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+import { MessageSquare } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import type { Document, DocumentStatus } from '@/types'
@@ -70,6 +72,7 @@ function SkeletonRow() {
       <td className="px-4 py-3">
         <Skeleton className="h-4 w-28 rounded" />
       </td>
+      <td className="px-4 py-3" />
     </tr>
   )
 }
@@ -96,9 +99,10 @@ export function DocumentsTable({ documents, isLoading }: DocumentsTableProps) {
               <th className="text-left px-4 py-3 text-xs font-medium text-[#64748B] uppercase tracking-wide w-[20%]">
                 Status
               </th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-[#64748B] uppercase tracking-wide w-[25%]">
+              <th className="text-left px-4 py-3 text-xs font-medium text-[#64748B] uppercase tracking-wide w-[20%]">
                 Uploaded
               </th>
+              <th className="px-4 py-3 w-[5%]" />
             </tr>
           </thead>
           <tbody>
@@ -136,6 +140,17 @@ export function DocumentsTable({ documents, isLoading }: DocumentsTableProps) {
                   </td>
                   <td className="px-4 py-3 text-[#64748B]">
                     {formatDate(doc.uploadedAt)}
+                  </td>
+                  <td className="px-4 py-3">
+                    {doc.status === 'done' && (
+                      <Link
+                        href={`/chat?docId=${doc.id}&docName=${encodeURIComponent(doc.filename)}`}
+                        className="flex items-center gap-1 text-xs text-[#4F6CF7] hover:text-[#3B5BDB] font-medium whitespace-nowrap"
+                      >
+                        <MessageSquare size={13} />
+                        Ask
+                      </Link>
+                    )}
                   </td>
                 </tr>
               ))
