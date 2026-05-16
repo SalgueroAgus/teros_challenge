@@ -13,7 +13,8 @@ interface ChatInputProps {
   onAttach: (file: File) => void
   onRemoveAttachment: () => void
   isLoading: boolean
-  activeDocumentName?: string
+  activeDocumentName?: string | null
+  onClearActiveDocument?: () => void
 }
 
 const ACCEPTED_TYPES = {
@@ -32,6 +33,7 @@ export function ChatInput({
   onRemoveAttachment,
   isLoading,
   activeDocumentName,
+  onClearActiveDocument,
 }: ChatInputProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -73,9 +75,18 @@ export function ChatInput({
       {activeDocumentName && (
         <div className="flex items-center gap-1.5 mb-2 px-1">
           <span className="text-xs text-[#64748B]">Context:</span>
-          <span className="text-xs bg-[#EEF2FF] text-[#4F6CF7] px-2 py-0.5 rounded-full font-medium">
-            {activeDocumentName}
-          </span>
+          <div className="flex items-center gap-1 bg-[#EEF2FF] text-[#4F6CF7] px-2 py-0.5 rounded-full">
+            <span className="text-xs font-medium">{activeDocumentName}</span>
+            {onClearActiveDocument && (
+              <button
+                onClick={onClearActiveDocument}
+                className="ml-0.5 hover:text-red-400 flex-shrink-0"
+                aria-label="Clear document context"
+              >
+                <X size={11} />
+              </button>
+            )}
+          </div>
         </div>
       )}
 

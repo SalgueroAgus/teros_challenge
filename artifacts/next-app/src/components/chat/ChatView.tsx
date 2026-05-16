@@ -22,6 +22,10 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
   const [inputValue, setInputValue] = useState('')
   const [attachedFile, setAttachedFile] = useState<File | null>(null)
 
+  // Document pinned for the whole chat session after an upload
+  const [sessionDocumentId, setSessionDocumentId] = useState<string | null>(null)
+  const [sessionDocumentName, setSessionDocumentName] = useState<string | null>(null)
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
@@ -30,6 +34,10 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
       messagesEndRef.current.scrollIntoView({ behavior: 'instant' })
     }
   }, [messages, isLoading])
+
+  // Effective document context: session upload > prop passed in > none (searches all)
+  const effectiveDocumentId = sessionDocumentId ?? activeDocumentId
+  const effectiveDocumentName = sessionDocumentName ?? activeDocumentName ?? null
 
   async function handleSend(contentOverride?: string) {
     const content = (contentOverride ?? inputValue).trim()
@@ -50,33 +58,38 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
     setIsLoading(true)
 
     try {
-      // Upload file first if one is attached
-      let documentId = activeDocumentId
+      let documentId = effectiveDocumentId
+
       if (fileToUpload) {
         const uploaded = await uploadDocument(fileToUpload)
         documentId = uploaded.document_id
+        // Pin this document for the rest of the session
+        setSessionDocumentId(uploaded.document_id)
+        setSessionDocumentName(fileToUpload.name)
       }
 
-      // Query the RAG pipeline
       const { answer, sources } = await queryDocuments(content, documentId)
 
-      const assistantMessage: Message = {
-        id: generateId(),
-        role: 'assistant',
-        content: answer,
-        timestamp: new Date(),
-        sources,
-      }
-
-      setMessages((prev) => [...prev, assistantMessage])
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: generateId(),
+          role: 'assistant',
+          content: answer,
+          timestamp: new Date(),
+          sources,
+        },
+      ])
     } catch (err) {
-      const assistantMessage: Message = {
-        id: generateId(),
-        role: 'assistant',
-        content: err instanceof Error ? err.message : 'Something went wrong. Please try again.',
-        timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, assistantMessage])
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: generateId(),
+          role: 'assistant',
+          content: err instanceof Error ? err.message : 'Something went wrong. Please try again.',
+          timestamp: new Date(),
+        },
+      ])
     } finally {
       setIsLoading(false)
     }
@@ -86,7 +99,6 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
 
   return (
     <div className="flex flex-col h-full bg-[#F0F4FF]">
-      {/* Message area */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
         {!hasMessages ? (
           <div className="flex items-center justify-center h-full min-h-0">
@@ -103,7 +115,6 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
         )}
       </div>
 
-      {/* Input bar */}
       <div className="flex-shrink-0 pb-5 pt-3 px-0">
         <ChatInput
           value={inputValue}
@@ -113,7 +124,10 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
           onAttach={setAttachedFile}
           onRemoveAttachment={() => setAttachedFile(null)}
           isLoading={isLoading}
-          activeDocumentName={activeDocumentName}
+          activeDocumentName={effectiveDocumentName}
+          onClearActiveDocument={
+            sessionDocumentId ? () => { setSessionDocumentId(null); setSessionDocumentName(null) } : undefined
+          }
         />
       </div>
     </div>
