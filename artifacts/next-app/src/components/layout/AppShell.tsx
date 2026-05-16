@@ -6,10 +6,9 @@ import { Sidebar } from './Sidebar'
 interface AppShellProps {
   children: React.ReactNode
   activeDocumentId: string | null
-  onActiveDocumentChange?: (id: string | null) => void
 }
 
-export function AppShell({ children, activeDocumentId, onActiveDocumentChange }: AppShellProps) {
+export function AppShell({ children, activeDocumentId }: AppShellProps) {
   const [sidebarExpanded, setSidebarExpanded] = useState(true)
 
   return (
