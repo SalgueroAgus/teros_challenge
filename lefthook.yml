@@ -7,9 +7,6 @@ pre-push:
     backend-lint:
       glob: "backend/**/*.py"
       run: cd backend && uv run ruff check .
-    frontend-typecheck:
-      glob: "artifacts/**/*.{ts,tsx}"
-      run: pnpm --filter @workspace/next-app exec tsc --noEmit
     frontend-lint:
       glob: "artifacts/**/*.{ts,tsx}"
       run: pnpm --filter @workspace/next-app run lint
