@@ -6,7 +6,8 @@
     "dev": "next dev --port ${PORT:-3000} --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start --port ${PORT:-3000} --hostname 0.0.0.0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "next lint"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
@@ -31,6 +32,8 @@
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "eslint": "^10.4.0",
+    "eslint-config-next": "^16.2.6",
     "tailwindcss": "catalog:",
     "typescript": "~5.9.3"
   }

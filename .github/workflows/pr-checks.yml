@@ -5,8 +5,8 @@ on:
     branches: [main]
 
 jobs:
-  backend-tests:
-    name: Backend tests
+  backend:
+    name: Backend tests + lint
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -25,11 +25,14 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
+      - name: Lint
+        run: uv run ruff check .
+
       - name: Run tests
         run: uv run pytest tests/ -v
 
-  frontend-checks:
-    name: Frontend type check + build
+  frontend:
+    name: Frontend typecheck + lint + build
     runs-on: ubuntu-latest
 
     steps:
@@ -49,6 +52,9 @@ jobs:
 
       - name: Type check
         run: pnpm --filter @workspace/next-app exec tsc --noEmit
+
+      - name: Lint
+        run: pnpm --filter @workspace/next-app run lint
 
       - name: Build
         env:
