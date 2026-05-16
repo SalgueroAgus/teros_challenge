@@ -9,13 +9,14 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from openai import OpenAI
+
 from supabase import create_client
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
-from app.pipeline.parser import parse
-from app.pipeline.chunker import chunk
-from app.pipeline.embedder import embed_and_store
+from app.pipeline.chunker import chunk  # noqa: E402
+from app.pipeline.embedder import embed_and_store  # noqa: E402
+from app.pipeline.parser import parse  # noqa: E402
 
 SAMPLE = Path(__file__).parent / "sample_statement.csv"
 TEST_QUESTION = "How much did I spend on groceries in March?"
