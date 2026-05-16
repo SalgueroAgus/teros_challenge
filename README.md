@@ -16,7 +16,8 @@
 8. [Database Migrations](#database-migrations)
 9. [Configuration Reference](#configuration-reference)
 10. [Deployment](#deployment)
-11. [Project Structure](#project-structure)
+11. [Claude Code Setup](#claude-code-setup)
+12. [Project Structure](#project-structure)
 
 ---
 
@@ -488,6 +489,43 @@ teros_challenge/
 │
 └── README.md
 ```
+
+---
+
+## Claude Code Setup
+
+### Custom Skill — `cicd-master`
+
+A custom Claude Code skill is configured at `.claude/skills/cicd-master/SKILL.md`. It gives Claude a specialised persona for auditing and building GitHub Actions pipelines for this repo.
+
+**How to use:**
+
+```
+/cicd-master audit          — list all CI/CD gaps; no changes made
+/cicd-master build <scope>  — create branch ci/<scope>, scaffold workflow, open PR
+/cicd-master add-tests      — scaffold backend pytest + frontend type-check jobs
+/cicd-master fix <workflow> — diagnose a failing workflow and open a fix PR
+```
+
+**Non-negotiable rules baked into the skill:**
+- Never pushes directly to `main` — always works on a feature branch and opens a PR with `gh pr create`
+- Every PR gets the `ci/cd` label and a standard body template
+
+### Git Worktrees
+
+The project uses git worktrees to run parallel Claude Code sessions without stashing or branch-switching.
+
+```bash
+# The worktree was created with:
+git worktree add ../finsight-cicd ci/frontend-build
+
+# Verify both worktrees:
+git worktree list
+# /path/to/teros_challenge    c5561e8 [replit_build]
+# /path/to/finsight-cicd      2307c82 [ci/frontend-build]
+```
+
+`../finsight-cicd/` is the live worktree where the `cicd-master` skill was used to build the frontend validation CI workflow (`validate-frontend.yml`), in parallel with main-branch work. The feature was then merged back to `main` via PR.
 
 ---
 
