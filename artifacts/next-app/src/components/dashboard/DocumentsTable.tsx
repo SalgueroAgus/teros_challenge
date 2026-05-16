@@ -61,18 +61,20 @@ function SkeletonRow() {
   return (
     <tr className={`border-b border-gray-50 ${ROW_HEIGHT}`}>
       <td className="px-4 py-3">
-        <Skeleton className="h-4 w-48 rounded" />
+        <Skeleton className="h-4 w-32 rounded" />
       </td>
       <td className="px-4 py-3">
-        <Skeleton className="h-4 w-16 rounded" />
+        <Skeleton className="h-4 w-9 rounded" />
       </td>
       <td className="px-4 py-3">
-        <Skeleton className="h-5 w-20 rounded-full" />
+        <Skeleton className="h-5 w-14 rounded" />
       </td>
       <td className="px-4 py-3">
-        <Skeleton className="h-4 w-28 rounded" />
+        <Skeleton className="h-4 w-24 rounded" />
       </td>
-      <td className="px-4 py-3" />
+      <td className="px-4 py-3">
+        <Skeleton className="h-4 w-7 rounded" />
+      </td>
     </tr>
   )
 }

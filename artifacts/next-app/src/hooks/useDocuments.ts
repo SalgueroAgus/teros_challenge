@@ -8,7 +8,6 @@ export function useDocuments() {
   return useQuery<Document[]>({
     queryKey: ['documents'],
     queryFn: fetchDocuments,
-    placeholderData: [],
     refetchInterval: (query) => {
       const data = query.state.data
       if (!data) return false
