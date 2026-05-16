@@ -13,16 +13,16 @@ def test_health(api_client):
 
 
 def test_list_documents_empty(api_client, mock_supabase):
-    mock_supabase.table.return_value.select.return_value.order.return_value.execute.return_value = MagicMock(
-        data=[]
-    )
+    docs_execute = mock_supabase.table.return_value.select.return_value.order.return_value.execute
+    docs_execute.return_value = MagicMock(data=[])
     response = api_client.get("/documents")
     assert response.status_code == 200
     assert response.json() == []
 
 
 def test_list_documents_returns_data(api_client, mock_supabase):
-    mock_supabase.table.return_value.select.return_value.order.return_value.execute.return_value = MagicMock(
+    docs_execute = mock_supabase.table.return_value.select.return_value.order.return_value.execute
+    docs_execute.return_value = MagicMock(
         data=[{"id": "abc", "filename": "test.pdf", "status": "done", "uploaded_at": "2026-01-01"}]
     )
     response = api_client.get("/documents")

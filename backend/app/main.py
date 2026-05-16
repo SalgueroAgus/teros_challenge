@@ -5,10 +5,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 from openai import OpenAI
 from pydantic import BaseModel
-from supabase import Client
 
 from app.dependencies import get_openai, get_supabase
 from app.pipeline.ingest import ingest
+from supabase import Client
 
 app = FastAPI(title="FinSight API", version="0.1.0")
 

@@ -1,16 +1,10 @@
-'use client'
-
-import { useSearchParams } from 'next/navigation'
-import { ChatView } from '@/components/chat/ChatView'
+import { Suspense } from 'react'
+import { ChatPageInner } from './ChatPageInner'
 
 export default function ChatPage() {
-  const params = useSearchParams()
-  const docId = params.get('docId')
-  const docName = params.get('docName') ?? undefined
-
   return (
-    <div className="h-full">
-      <ChatView activeDocumentId={docId} activeDocumentName={docName} />
-    </div>
+    <Suspense>
+      <ChatPageInner />
+    </Suspense>
   )
 }

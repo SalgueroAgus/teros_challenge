@@ -1,6 +1,6 @@
-from app.pipeline.chunker import CHUNK_OVERLAP, CHUNK_SIZE, chunk
-
 import tiktoken
+
+from app.pipeline.chunker import CHUNK_OVERLAP, CHUNK_SIZE, chunk
 
 
 def _token_count(text: str) -> int:

@@ -1,6 +1,6 @@
 """Shared fixtures — mock external clients so tests never hit real APIs."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient

@@ -14,7 +14,8 @@ def _make_csv(rows: list[list[str]]) -> bytes:
 
 
 def test_csv_basic():
-    content = _make_csv([["Date", "Amount", "Description"], ["2024-03-01", "-54.32", "Whole Foods"]])
+    rows = [["Date", "Amount", "Description"], ["2024-03-01", "-54.32", "Whole Foods"]]
+    content = _make_csv(rows)
     result = parse("statement.csv", content)
     assert "Date" in result
     assert "Whole Foods" in result

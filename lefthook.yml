@@ -1,0 +1,15 @@
+pre-push:
+  parallel: true
+  commands:
+    backend-tests:
+      glob: "backend/**/*.py"
+      run: cd backend && uv run pytest tests/ -v
+    backend-lint:
+      glob: "backend/**/*.py"
+      run: cd backend && uv run ruff check .
+    frontend-lint:
+      glob: "artifacts/**/*.{ts,tsx}"
+      run: pnpm --filter @workspace/next-app run lint
+    frontend-build:
+      glob: "artifacts/**/*.{ts,tsx,css,json}"
+      run: pnpm --filter @workspace/next-app build

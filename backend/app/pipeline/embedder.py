@@ -1,11 +1,10 @@
 """Generate embeddings and store chunks in Supabase."""
 
-import os
 
 from openai import OpenAI
-from supabase import Client
 
 from app.pipeline.chunker import Chunk
+from supabase import Client
 
 EMBEDDING_MODEL = "text-embedding-3-small"
 EMBED_BATCH_SIZE = 100  # OpenAI allows up to 2048 inputs per request
