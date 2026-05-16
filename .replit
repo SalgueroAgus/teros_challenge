@@ -3,6 +3,8 @@ modules = ["nodejs-24"]
 [deployment]
 router = "application"
 deploymentTarget = "autoscale"
+build = ["pnpm", "--filter", "@workspace/next-app", "run", "build"]
+run = ["pnpm", "--filter", "@workspace/next-app", "run", "start"]
 
 [deployment.postBuild]
 args = ["pnpm", "store", "prune"]
