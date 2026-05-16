@@ -1,0 +1,39 @@
+name: Validate Frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'artifacts/**'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Typecheck + lint + build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Type check
+        run: pnpm --filter @workspace/next-app exec tsc --noEmit
+
+      - name: Lint
+        run: pnpm --filter @workspace/next-app run lint
+
+      - name: Build
+        env:
+          NEXT_PUBLIC_API_URL: https://tzywgdhhkg.execute-api.us-east-1.amazonaws.com
+        run: pnpm --filter @workspace/next-app build
