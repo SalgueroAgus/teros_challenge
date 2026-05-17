@@ -103,9 +103,9 @@ def test_upload_unsupported_type(api_client, mock_supabase):
     assert response.status_code == 202
 
 
-def test_upload_server_error_returns_500(api_client, mock_supabase):
-    # Runtime errors are handled inside the background task; the HTTP layer
-    # always returns 202 — status column is set to "error" asynchronously.
+def test_upload_returns_202_even_when_ingest_fails(api_client, mock_supabase):
+    # Ingest errors are handled inside the background task and set status="error"
+    # asynchronously — the HTTP response is always 202 Accepted.
     with patch("app.main._ingest_and_update"):
         response = api_client.post(
             "/upload",
