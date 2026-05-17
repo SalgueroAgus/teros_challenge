@@ -62,6 +62,7 @@ function formatDate(dateStr: string) {
 }
 
 const ROW_HEIGHT = 'h-[52px]'
+const PAGE_SIZE = 10
 
 function SkeletonRow() {
   return (
@@ -81,6 +82,14 @@ function SkeletonRow() {
       <td className="px-4 py-3">
         <Skeleton className="h-4 w-7 rounded" />
       </td>
+    </tr>
+  )
+}
+
+function FillerRow() {
+  return (
+    <tr className={`border-b border-gray-50 ${ROW_HEIGHT}`}>
+      <td colSpan={5} />
     </tr>
   )
 }
@@ -127,24 +136,24 @@ export function DocumentsTable({
           </thead>
           <tbody>
             {isLoading ? (
-              <>
-                <SkeletonRow />
-                <SkeletonRow />
-                <SkeletonRow />
-              </>
+              Array.from({ length: PAGE_SIZE }).map((_, i) => <SkeletonRow key={i} />)
             ) : documents.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-12 text-center">
-                  <div className="flex flex-col items-center gap-2">
-                    <span className="text-[#64748B] text-sm">No documents uploaded yet</span>
-                    <span className="text-[#94A3B8] text-xs">
-                      Upload a document in the Chat view to get started
-                    </span>
-                  </div>
-                </td>
-              </tr>
+              <>
+                <tr className={ROW_HEIGHT}>
+                  <td colSpan={5} className="px-4 pt-10 text-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <span className="text-[#64748B] text-sm">No documents uploaded yet</span>
+                      <span className="text-[#94A3B8] text-xs">
+                        Upload a document in the Chat view to get started
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+                {Array.from({ length: PAGE_SIZE - 1 }).map((_, i) => <FillerRow key={i} />)}
+              </>
             ) : (
-              documents.map((doc) => (
+              <>
+              {documents.map((doc) => (
                 <tr
                   key={doc.id}
                   className={`border-b border-gray-50 hover:bg-gray-50/50 ${ROW_HEIGHT}`}
@@ -190,7 +199,11 @@ export function DocumentsTable({
                     </div>
                   </td>
                 </tr>
-              ))
+              ))}
+              {Array.from({ length: PAGE_SIZE - documents.length }).map((_, i) => (
+                <FillerRow key={i} />
+              ))}
+              </>
             )}
           </tbody>
         </table>
