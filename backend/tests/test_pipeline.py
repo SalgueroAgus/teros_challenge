@@ -67,6 +67,7 @@ def main() -> None:
         "match_chunks",
         {
             "query_embedding": q_embedding,
+            "query_text": TEST_QUESTION,
             "match_threshold": 0.3,
             "match_count": 3,
             "filter_document_id": document_id,
