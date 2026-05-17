@@ -1,6 +1,7 @@
 import logging
 import math
 import uuid
+from typing import Literal
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,12 +9,11 @@ from mangum import Mangum
 from openai import OpenAI
 from postgrest.exceptions import APIError as PostgRESTError
 from pydantic import BaseModel, Field
-from typing import Literal
+from supabase import Client
 
 from app.dependencies import get_openai, get_supabase, verify_api_key
 from app.pipeline.embedder import EMBEDDING_MODEL
 from app.pipeline.ingest import ingest
-from supabase import Client
 
 logger = logging.getLogger(__name__)
 
