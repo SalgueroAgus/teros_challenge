@@ -101,10 +101,13 @@ async def upload(
     except ValueError as exc:
         supabase.table("documents").update({"status": "error"}).eq("id", document_id).execute()
         raise HTTPException(status_code=400, detail=str(exc))
-    except Exception as exc:
+    except Exception:
         logger.exception("Ingest failed for document %s", document_id)
         supabase.table("documents").update({"status": "error"}).eq("id", document_id).execute()
-        raise HTTPException(status_code=500, detail="An internal error occurred while processing the file.")
+        raise HTTPException(
+            status_code=500,
+            detail="An internal error occurred while processing the file.",
+        )
 
     return {"document_id": document_id, "filename": file.filename, "status": "done"}
 
