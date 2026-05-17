@@ -11,9 +11,7 @@ export function useDocuments(page = 1) {
     refetchInterval: (query) => {
       const data = query.state.data
       if (!data) return false
-      const hasActiveDoc = data.items.some(
-        (doc) => doc.status === 'pending' || doc.status === 'processing'
-      )
+      const hasActiveDoc = data.items.some((doc) => doc.status === 'pending')
       return hasActiveDoc ? 3000 : false
     },
   })
