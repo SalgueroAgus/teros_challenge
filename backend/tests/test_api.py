@@ -101,3 +101,25 @@ def test_query_with_document_id_passes_filter(api_client, mock_supabase, mock_op
     )
     call_kwargs = mock_supabase.rpc.call_args[0][1]
     assert call_kwargs["filter_document_id"] == "doc-uuid-123"
+    assert "query_text" in call_kwargs
+
+
+def test_query_scoped_uses_lower_threshold(api_client, mock_supabase, mock_openai):
+    mock_supabase.rpc.return_value.execute.return_value = MagicMock(
+        data=[{"chunk_id": "c1", "content": "receipt", "similarity": 0.15}]
+    )
+    api_client.post(
+        "/query",
+        json={"question": "What did I buy?", "document_id": "doc-uuid-123"},
+    )
+    call_kwargs = mock_supabase.rpc.call_args[0][1]
+    assert call_kwargs["match_threshold"] == 0.1
+
+
+def test_query_global_uses_default_threshold(api_client, mock_supabase, mock_openai):
+    mock_supabase.rpc.return_value.execute.return_value = MagicMock(
+        data=[{"chunk_id": "c1", "content": "statement", "similarity": 0.35}]
+    )
+    api_client.post("/query", json={"question": "What are my expenses?"})
+    call_kwargs = mock_supabase.rpc.call_args[0][1]
+    assert call_kwargs["match_threshold"] == 0.3

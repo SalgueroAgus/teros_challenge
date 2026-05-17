@@ -305,8 +305,8 @@ curl -X POST https://tzywgdhhkg.execute-api.us-east-1.amazonaws.com/query \
 
 ```
                    ┌──────────────┐
-  upload file ───► │    Parser    │  pypdf · csv stdlib · pytesseract
-w                   └──────┬───────┘   (null bytes stripped for all types)
+  upload file ───► │    Parser    │  pypdf · GPT-4o-mini vision · csv stdlib
+                   └──────┬───────┘   (null bytes stripped for all types)
                           │
                   ┌───────┴────────┐
                CSV?              other
@@ -333,7 +333,16 @@ w                   └──────┬───────┘   (null byt
                    │  IVFFlat index       │
                    └──────────────────────┘
 
-  ask question ──► embed ──► match_chunks (cosine, top-5) ──► GPT-4o-mini ──► answer
+  ask question
+       │
+       ▼
+  query expansion (GPT-4o-mini) — rewrites to finance document vocabulary
+       │
+       ├──── dense:  embed → cosine similarity (pgvector)
+       │
+       └──── sparse: plainto_tsquery → ts_rank_cd (PostgreSQL FTS)
+                │
+                └── RRF merge → top-5 chunks → GPT-4o-mini → answer
 ```
 
 ### Chunking strategy
@@ -357,22 +366,37 @@ CSVs and unstructured documents (PDFs, images) use different strategies because 
   ...
   ```
 
-### Retrieval
+### Query expansion
 
-The `match_chunks` SQL function computes cosine distance (`<=>`) between the query embedding and all stored chunk vectors using pgvector's IVFFlat index. The top 5 results are returned, filtered by a minimum similarity threshold of 0.5.
+Before embedding, the user's question is rewritten by GPT-4o-mini into finance document vocabulary — keywords and synonyms likely to appear in receipts, statements, and invoices. This bridges the gap between how users speak ("biggest expense") and how documents read ("WATERMELON 4.50", "RENT PAYMENT -2100.00").
 
-```sql
-select chunk_id, document_id, content, 1 - (embedding <=> query_embedding) as similarity
-from document_chunks
-where (document_id = filter_doc_id or filter_doc_id is null)
-  and 1 - (embedding <=> query_embedding) > 0.5
-order by embedding <=> query_embedding
-limit 5;
 ```
+"What's the most expensive item?"
+        ↓  GPT-4o-mini (temp=0, max_tokens=60)
+"highest price item cost expensive purchase total amount"
+        ↓  embedded + searched
+```
+
+### Retrieval — hybrid search with RRF
+
+`match_chunks` combines two retrieval signals and merges them with **Reciprocal Rank Fusion**:
+
+| Signal | Method | Good at |
+|---|---|---|
+| **Dense** | Cosine similarity via pgvector IVFFlat | Semantic meaning, paraphrases |
+| **Sparse** | PostgreSQL `ts_rank_cd` full-text search | Exact terms, numbers, proper nouns |
+
+```
+rrf_score = 1/(60 + dense_rank) + 1/(60 + sparse_rank)
+```
+
+The `60` constant is standard from the original RRF paper — it down-weights low-ranked results without requiring manual weight tuning. Top-5 chunks by RRF score are returned.
+
+**Threshold scoping:** when the query is scoped to a specific document (`document_id` provided), the similarity threshold is relaxed from `0.3` to `0.1` — cross-document noise isn't a risk when the scope is already fixed, so the stricter threshold only discards valid results.
 
 ### Answer generation
 
-Retrieved chunks are formatted into a system prompt that instructs GPT-4o-mini to answer using only the provided context, or say it doesn't know if the context is insufficient. This prevents hallucination about financial data.
+Retrieved chunks are passed to GPT-4o-mini with a system prompt that instructs it to answer using only the provided context, or say it doesn't know if the context is insufficient. This prevents hallucination about financial data.
 
 ---
 
@@ -399,7 +423,8 @@ The CLI records applied migrations in a `supabase_migrations` table — it never
 |---|---|
 | `20260516184335_enable_pgvector.sql` | Enable `vector` extension in `extensions` schema |
 | `20260516184336_create_documents.sql` | `documents` table with status enum check |
-| `20260516184337_create_chunks_and_match_fn.sql` | `document_chunks` table + IVFFlat index + `match_chunks` similarity search function |
+| `20260516184337_create_chunks_and_match_fn.sql` | `document_chunks` table + IVFFlat index + original `match_chunks` function |
+| `20260517005821_hybrid_match_chunks.sql` | Replace `match_chunks` with hybrid dense + sparse RRF version; adds `query_text` parameter |
 
 > **Note:** The `vector` type lives in `extensions` schema in Supabase. All references use `extensions.vector(1536)` and the `match_chunks` function sets `search_path = extensions, public` so the `<=>` operator is found.
 

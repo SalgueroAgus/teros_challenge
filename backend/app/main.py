@@ -31,6 +31,12 @@ SYSTEM_PROMPT = (
     "Answer the user's question using only the financial document excerpts provided. "
     "Be concise and specific. If the excerpts don't contain enough information, say so."
 )
+EXPAND_PROMPT = (
+    "You are a search query expander for a personal finance assistant. "
+    "Rewrite the user's question as a short list of keywords and synonyms that would appear "
+    "in financial documents (receipts, bank statements, invoices). "
+    "Output only the expanded query — no explanation, no punctuation, no bullet points."
+)
 
 
 # ── Models ────────────────────────────────────────────────────────────────────
@@ -88,23 +94,42 @@ def list_documents(supabase: Client = Depends(get_supabase)):
     return result.data
 
 
+def _expand_query(question: str, openai: OpenAI) -> str:
+    response = openai.chat.completions.create(
+        model=CHAT_MODEL,
+        messages=[
+            {"role": "system", "content": EXPAND_PROMPT},
+            {"role": "user", "content": question},
+        ],
+        max_tokens=60,
+        temperature=0,
+    )
+    return response.choices[0].message.content.strip()
+
+
 @app.post("/query", response_model=QueryResponse)
 def query(
     body: QueryRequest,
     supabase: Client = Depends(get_supabase),
     openai: OpenAI = Depends(get_openai),
 ):
+    expanded = _expand_query(body.question, openai)
+
     q_embedding = (
-        openai.embeddings.create(model=EMBEDDING_MODEL, input=body.question)
+        openai.embeddings.create(model=EMBEDDING_MODEL, input=expanded)
         .data[0]
         .embedding
     )
+
+    # Relax threshold when scoped to a document — cross-doc noise isn't a risk
+    threshold = 0.1 if body.document_id else MATCH_THRESHOLD
 
     matches = supabase.rpc(
         "match_chunks",
         {
             "query_embedding": q_embedding,
-            "match_threshold": MATCH_THRESHOLD,
+            "query_text": expanded,
+            "match_threshold": threshold,
             "match_count": MATCH_COUNT,
             "filter_document_id": body.document_id,
         },
