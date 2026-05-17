@@ -76,7 +76,7 @@ FinSight lets users upload financial documents (PDFs, CSVs, images) and chat wit
 └──────────────────┘   └───────────────────┘
 ```
 
-**Upload flow:** `POST /upload` → validate (size ≤ 10 MB, no duplicate filename) → parse (PDF/CSV/image) → chunk → embed (`text-embedding-3-small`) → store in `document_chunks` → mark document `done`
+**Upload flow:** `POST /upload` → validate (size ≤ 10 MB, no duplicate filename) → insert document as `pending` → return `202` immediately → *(background task)* parse (PDF/CSV/image) → chunk → embed (`text-embedding-3-small`) → store in `document_chunks` → mark document `done`
 
 **Query flow:** `POST /query` → expand question → embed → hybrid dense+sparse search → top-5 chunks by RRF score → GPT-4o-mini → answer + sources
 
@@ -240,7 +240,7 @@ curl https://tzywgdhhkg.execute-api.us-east-1.amazonaws.com/health
 
 ### `POST /upload`
 
-Upload a document for processing. Returns immediately once all chunks are embedded and stored (synchronous).
+Upload a document for processing. Returns `202 Accepted` immediately with `status: pending`; the parse → chunk → embed → store pipeline runs as a background task and updates the status to `done` (or `error`) when finished. Poll `GET /documents` to observe progress.
 
 **Request** — `multipart/form-data`
 
@@ -248,11 +248,10 @@ Upload a document for processing. Returns immediately once all chunks are embedd
 |---|---|---|
 | `file` | file | PDF, CSV, PNG, JPG, or JPEG — max 10 MB |
 
-**Error responses**
+**Error responses** (returned synchronously — before the background task starts)
 
 | Status | Condition |
 |---|---|
-| `400` | Unsupported file type |
 | `409` | A document with the same filename already exists |
 | `413` | File exceeds 10 MB |
 
@@ -266,7 +265,7 @@ curl -X POST https://tzywgdhhkg.execute-api.us-east-1.amazonaws.com/upload \
 {
   "document_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "filename": "bank_statement.pdf",
-  "status": "done"
+  "status": "pending"
 }
 ```
 
@@ -292,7 +291,7 @@ curl https://tzywgdhhkg.execute-api.us-east-1.amazonaws.com/documents \
 ]
 ```
 
-Possible `status` values: `pending` · `processing` · `done` · `error`
+Possible `status` values: `pending` · `done` · `error`
 
 ---
 
@@ -515,6 +514,12 @@ The CLI records applied migrations in a `supabase_migrations` table — it never
 | `OPENAI_API_KEY` | Forwarded to the Lambda environment |
 | `SUPABASE_URL` | Forwarded to the Lambda environment |
 | `SUPABASE_SECRET_KEY` | Forwarded to the Lambda environment |
+
+### GitHub Actions variables
+
+| Variable | Description |
+|---|---|
+| `API_GATEWAY_URL` | Lambda invoke URL used by frontend CI builds (e.g. `https://tzywgdhhkg.execute-api.us-east-1.amazonaws.com`). Set in GitHub → repo Settings → Secrets and variables → Actions → **Variables** tab. |
 
 ---
 
