@@ -61,7 +61,8 @@ function formatDate(dateStr: string) {
   }
 }
 
-const ROW_HEIGHT = 'h-[52px]'
+const ROW_HEIGHT = 'h-[53px]'
+const PAGE_SIZE = 10
 
 function SkeletonRow() {
   return (
@@ -85,6 +86,14 @@ function SkeletonRow() {
   )
 }
 
+function FillerRow() {
+  return (
+    <tr className="border-b border-gray-50">
+      <td colSpan={5} className={ROW_HEIGHT} />
+    </tr>
+  )
+}
+
 export function DocumentsTable({
   documents,
   isLoading,
@@ -95,7 +104,6 @@ export function DocumentsTable({
   total = 0,
   onPageChange,
 }: DocumentsTableProps) {
-  const showPagination = onPageChange !== undefined && totalPages > 1
   const rangeStart = total === 0 ? 0 : (currentPage - 1) * 10 + 1
   const rangeEnd = rangeStart + documents.length - 1
   return (
@@ -127,103 +135,118 @@ export function DocumentsTable({
           </thead>
           <tbody>
             {isLoading ? (
-              <>
-                <SkeletonRow />
-                <SkeletonRow />
-                <SkeletonRow />
-              </>
+              Array.from({ length: PAGE_SIZE }).map((_, i) => <SkeletonRow key={i} />)
             ) : documents.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-12 text-center">
-                  <div className="flex flex-col items-center gap-2">
-                    <span className="text-[#64748B] text-sm">No documents uploaded yet</span>
-                    <span className="text-[#94A3B8] text-xs">
-                      Upload a document in the Chat view to get started
-                    </span>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              documents.map((doc) => (
-                <tr
-                  key={doc.id}
-                  className={`border-b border-gray-50 hover:bg-gray-50/50 ${ROW_HEIGHT}`}
-                >
-                  <td className="px-4 py-3 font-medium text-[#0F172A] truncate max-w-xs">
-                    {doc.filename}
-                  </td>
-                  <td className="px-4 py-3 text-[#64748B] uppercase text-xs font-mono">
-                    {doc.fileType}
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={doc.status} />
-                  </td>
-                  <td className="px-4 py-3 text-[#64748B]">
-                    {formatDate(doc.uploadedAt)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      {doc.status === 'done' && (
-                        <Link
-                          href={`/chat?docId=${doc.id}&docName=${encodeURIComponent(doc.filename)}`}
-                          title="Ask questions about this document"
-                          className="w-7 h-7 flex items-center justify-center rounded-md text-[#4F6CF7] hover:bg-[#EEF2FF]"
-                        >
-                          <MessageSquare size={14} />
-                        </Link>
-                      )}
-                      {onDelete && (
-                        <button
-                          onClick={() => {
-                            if (window.confirm(`Delete "${doc.filename}"? This cannot be undone.`)) {
-                              onDelete(doc.id)
-                            }
-                          }}
-                          disabled={isDeleting}
-                          title="Delete document"
-                          className="w-7 h-7 flex items-center justify-center rounded-md text-[#94A3B8] hover:text-red-500 hover:bg-red-50 disabled:opacity-40"
-                          aria-label={`Delete ${doc.filename}`}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      )}
+              <>
+                <tr className={ROW_HEIGHT}>
+                  <td colSpan={5} className="px-4 pt-10 text-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <span className="text-[#64748B] text-sm">No documents uploaded yet</span>
+                      <span className="text-[#94A3B8] text-xs">
+                        Upload a document in the Chat view to get started
+                      </span>
                     </div>
                   </td>
                 </tr>
-              ))
+                {Array.from({ length: PAGE_SIZE - 1 }).map((_, i) => <FillerRow key={i} />)}
+              </>
+            ) : (
+              <>
+                {documents.map((doc) => (
+                  <tr
+                    key={doc.id}
+                    className={`border-b border-gray-50 hover:bg-gray-50/50 ${ROW_HEIGHT}`}
+                  >
+                    <td className="px-4 py-3 font-medium text-[#0F172A] truncate max-w-xs">
+                      {doc.filename}
+                    </td>
+                    <td className="px-4 py-3 text-[#64748B] uppercase text-xs font-mono">
+                      {doc.fileType}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={doc.status} />
+                    </td>
+                    <td className="px-4 py-3 text-[#64748B]">
+                      {formatDate(doc.uploadedAt)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        {doc.status === 'done' && (
+                          <Link
+                            href={`/chat?docId=${doc.id}&docName=${encodeURIComponent(doc.filename)}`}
+                            title="Ask questions about this document"
+                            className="w-7 h-7 flex items-center justify-center rounded-md text-[#4F6CF7] hover:bg-[#EEF2FF]"
+                          >
+                            <MessageSquare size={14} />
+                          </Link>
+                        )}
+                        {onDelete && (
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Delete "${doc.filename}"? This cannot be undone.`)) {
+                                onDelete(doc.id)
+                              }
+                            }}
+                            disabled={isDeleting}
+                            title="Delete document"
+                            className="w-7 h-7 flex items-center justify-center rounded-md text-[#94A3B8] hover:text-red-500 hover:bg-red-50 disabled:opacity-40"
+                            aria-label={`Delete ${doc.filename}`}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {Array.from({ length: PAGE_SIZE - documents.length }).map((_, i) => (
+                  <FillerRow key={i} />
+                ))}
+              </>
             )}
           </tbody>
         </table>
       </div>
 
-      {showPagination && (
+      {onPageChange !== undefined && (
         <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-          <span className="text-xs text-[#94A3B8]">
-            {total === 0
-              ? 'No documents'
-              : `Showing ${rangeStart}–${rangeEnd} of ${total}`}
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => onPageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="w-7 h-7 flex items-center justify-center rounded-md text-[#64748B] hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
-              aria-label="Previous page"
-            >
-              <ChevronLeft size={15} />
-            </button>
-            <span className="text-xs text-[#64748B] px-2 tabular-nums">
-              {currentPage} / {totalPages}
-            </span>
-            <button
-              onClick={() => onPageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="w-7 h-7 flex items-center justify-center rounded-md text-[#64748B] hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
-              aria-label="Next page"
-            >
-              <ChevronRight size={15} />
-            </button>
-          </div>
+          {isLoading ? (
+            <>
+              <Skeleton className="h-4 w-28 rounded" />
+              <Skeleton className="h-7 w-20 rounded" />
+            </>
+          ) : (
+            <>
+              <span className="text-xs text-[#94A3B8]">
+                {total === 0
+                  ? 'No documents'
+                  : `Showing ${rangeStart}–${rangeEnd} of ${total}`}
+              </span>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => onPageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="w-7 h-7 flex items-center justify-center rounded-md text-[#64748B] hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft size={15} />
+                  </button>
+                  <span className="text-xs text-[#64748B] px-2 tabular-nums">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => onPageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="w-7 h-7 flex items-center justify-center rounded-md text-[#64748B] hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                    aria-label="Next page"
+                  >
+                    <ChevronRight size={15} />
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>
