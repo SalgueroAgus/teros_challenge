@@ -3,6 +3,8 @@
 import io
 from unittest.mock import MagicMock, patch
 
+from postgrest.exceptions import APIError as PostgRESTError
+
 
 def test_health(api_client):
     response = api_client.get("/health")
@@ -12,9 +14,18 @@ def test_health(api_client):
     assert "version" in data
 
 
+def _paginated_execute(mock_supabase):
+    return (
+        mock_supabase.table.return_value
+        .select.return_value
+        .order.return_value
+        .range.return_value
+        .execute
+    )
+
+
 def test_list_documents_empty(api_client, mock_supabase):
-    paginated_execute = mock_supabase.table.return_value.select.return_value.order.return_value.range.return_value.execute
-    paginated_execute.return_value = MagicMock(data=[], count=0)
+    _paginated_execute(mock_supabase).return_value = MagicMock(data=[], count=0)
     response = api_client.get("/documents")
     assert response.status_code == 200
     data = response.json()
@@ -24,8 +35,7 @@ def test_list_documents_empty(api_client, mock_supabase):
 
 
 def test_list_documents_returns_data(api_client, mock_supabase):
-    paginated_execute = mock_supabase.table.return_value.select.return_value.order.return_value.range.return_value.execute
-    paginated_execute.return_value = MagicMock(
+    _paginated_execute(mock_supabase).return_value = MagicMock(
         data=[{"id": "abc", "filename": "test.pdf", "status": "done", "uploaded_at": "2026-01-01"}],
         count=1,
     )
@@ -39,9 +49,13 @@ def test_list_documents_returns_data(api_client, mock_supabase):
 
 
 def test_list_documents_out_of_range_returns_empty(api_client, mock_supabase):
-    from postgrest.exceptions import APIError as PostgRESTError
-    mock_supabase.table.return_value.select.return_value.order.return_value.range.return_value.execute.side_effect = (
-        PostgRESTError({"message": "Requested range not satisfiable", "code": "PGRST103", "hint": None, "details": ""})
+    _paginated_execute(mock_supabase).side_effect = PostgRESTError(
+        {
+            "message": "Requested range not satisfiable",
+            "code": "PGRST103",
+            "hint": None,
+            "details": "",
+        }
     )
     response = api_client.get("/documents?page=999")
     assert response.status_code == 200
@@ -51,8 +65,7 @@ def test_list_documents_out_of_range_returns_empty(api_client, mock_supabase):
 
 
 def test_list_documents_pagination_params(api_client, mock_supabase):
-    paginated_execute = mock_supabase.table.return_value.select.return_value.order.return_value.range.return_value.execute
-    paginated_execute.return_value = MagicMock(data=[], count=25)
+    _paginated_execute(mock_supabase).return_value = MagicMock(data=[], count=25)
     response = api_client.get("/documents?page=2&page_size=10")
     assert response.status_code == 200
     data = response.json()

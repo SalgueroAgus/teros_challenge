@@ -6,9 +6,8 @@ from fastapi import Depends, FastAPI, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 from openai import OpenAI
-from pydantic import BaseModel, Field
-
 from postgrest.exceptions import APIError as PostgRESTError
+from pydantic import BaseModel, Field
 
 from app.dependencies import get_openai, get_supabase, verify_api_key
 from app.pipeline.ingest import ingest
@@ -129,7 +128,11 @@ def delete_document(document_id: str, supabase: Client = Depends(get_supabase)):
     return {"deleted": document_id}
 
 
-@app.get("/documents", response_model=PaginatedDocumentsResponse, dependencies=[Depends(verify_api_key)])
+@app.get(
+    "/documents",
+    response_model=PaginatedDocumentsResponse,
+    dependencies=[Depends(verify_api_key)],
+)
 def list_documents(
     supabase: Client = Depends(get_supabase),
     page: int = Query(default=1, ge=1),
