@@ -554,4 +554,3 @@ git worktree list
 | Issue | Root cause | Priority |
 |---|---|---|
 | Inter font falls back to system font | `next/font/google` sets `--font-inter` but `globals.css` maps `--font-sans` — variable name mismatch | Low — cosmetic only |
-| Image OCR unavailable on Lambda | Tesseract requires a system binary not present in the Lambda runtime; returns a clear error message instead of silently failing | Low — PDF and CSV fully supported |
