@@ -8,6 +8,7 @@ from mangum import Mangum
 from openai import OpenAI
 from postgrest.exceptions import APIError as PostgRESTError
 from pydantic import BaseModel, Field
+from typing import Literal
 
 from app.dependencies import get_openai, get_supabase, verify_api_key
 from app.pipeline.embedder import EMBEDDING_MODEL
@@ -49,7 +50,7 @@ EXPAND_PROMPT = (
 # ── Models ────────────────────────────────────────────────────────────────────
 
 class HistoryMessage(BaseModel):
-    role: str  # "user" | "assistant"
+    role: Literal["user", "assistant"]
     content: str
 
 
