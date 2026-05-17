@@ -1,11 +1,8 @@
 import type { Document, Source } from '@/types'
 
-const BASE = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '')
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? ''
-
-function authHeaders(): HeadersInit {
-  return API_KEY ? { 'X-API-Key': API_KEY } : {}
-}
+// All requests go through Next.js route handlers — the API key never reaches the browser.
+// In production, add Supabase Auth + RLS to scope documents per user.
+const BASE = '/api'
 
 export interface UploadResponse {
   document_id: string
@@ -41,7 +38,6 @@ export async function uploadDocument(file: File): Promise<UploadResponse> {
   formData.append('file', file)
   const res = await fetch(`${BASE}/upload`, {
     method: 'POST',
-    headers: authHeaders(),
     body: formData,
   })
   if (!res.ok) {
@@ -57,7 +53,7 @@ export async function queryDocuments(
 ): Promise<QueryResponse> {
   const res = await fetch(`${BASE}/query`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ question, document_id: documentId ?? null }),
   })
   if (!res.ok) {
@@ -84,8 +80,7 @@ const EMPTY_PAGE = (page: number): PaginatedDocuments => ({
 })
 
 export async function fetchDocuments(page = 1): Promise<PaginatedDocuments> {
-  if (!BASE) return EMPTY_PAGE(page)
-  const res = await fetch(`${BASE}/documents?page=${page}&page_size=10`, { headers: authHeaders() })
+  const res = await fetch(`${BASE}/documents?page=${page}&page_size=10`)
   if (!res.ok) return EMPTY_PAGE(page)
   const data = await res.json()
   return {
@@ -98,10 +93,7 @@ export async function fetchDocuments(page = 1): Promise<PaginatedDocuments> {
 }
 
 export async function deleteDocument(id: string): Promise<void> {
-  const res = await fetch(`${BASE}/documents/${id}`, {
-    method: 'DELETE',
-    headers: authHeaders(),
-  })
+  const res = await fetch(`${BASE}/documents/${id}`, { method: 'DELETE' })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.detail ?? 'Delete failed')
