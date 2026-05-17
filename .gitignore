@@ -70,5 +70,5 @@ backend/supabase/.temp/
 # UV / Python virtualenvs
 .venv/
 
-/backend/tests/*.pdf
-
+# Test files
+backend/tests/*.pdf
