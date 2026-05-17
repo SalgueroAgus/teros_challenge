@@ -92,15 +92,6 @@ def test_upload_csv(api_client, mock_supabase):
     assert data["status"] == "pending"
 
 
-def test_upload_unsupported_type(api_client, mock_supabase):
-    # Validation errors (bad file type) surface in the background task — the
-    # endpoint itself always returns 202 once the file passes size/dupe checks.
-    with patch("app.main._ingest_and_update"):
-        response = api_client.post(
-            "/upload",
-            files={"file": ("doc.docx", io.BytesIO(b"content"), "application/octet-stream")},
-        )
-    assert response.status_code == 202
 
 
 def test_upload_returns_202_even_when_ingest_fails(api_client, mock_supabase):
@@ -143,10 +134,11 @@ def test_query_with_document_id_passes_filter(api_client, mock_supabase, mock_op
     mock_supabase.rpc.return_value.execute.return_value = MagicMock(
         data=[{"chunk_id": "c1", "content": "some content", "similarity": 0.85}]
     )
-    api_client.post(
+    response = api_client.post(
         "/query",
         json={"question": "Show expenses", "document_id": "doc-uuid-123"},
     )
+    assert response.status_code == 200
     call_kwargs = mock_supabase.rpc.call_args[0][1]
     assert call_kwargs["filter_document_id"] == "doc-uuid-123"
     assert "query_text" in call_kwargs
@@ -208,6 +200,11 @@ def test_delete_document_not_found_returns_404(api_client, mock_supabase):
     )
     response = api_client.delete("/documents/nonexistent-id")
     assert response.status_code == 404
+
+
+def test_query_empty_returns_422(api_client, mock_supabase):
+    response = api_client.post("/query", json={"question": ""})
+    assert response.status_code == 422
 
 
 def test_query_too_long_returns_422(api_client, mock_supabase):

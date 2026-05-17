@@ -1,5 +1,6 @@
 import csv
 import io
+import unittest.mock as mock
 
 import pytest
 
@@ -64,3 +65,27 @@ def test_null_bytes_stripped_from_csv():
     content = _make_csv([["col\x00A", "col\x00B"], ["val\x001", "val\x002"]])
     result = parse("data.csv", content)
     assert "\x00" not in result
+
+
+def _make_pdf() -> bytes:
+    from pypdf import PdfWriter
+    writer = PdfWriter()
+    writer.add_blank_page(width=612, height=792)
+    buf = io.BytesIO()
+    writer.write(buf)
+    return buf.getvalue()
+
+
+def test_pdf_returns_string():
+    result = parse("statement.pdf", _make_pdf())
+    assert isinstance(result, str)
+
+
+def test_pdf_extracts_text():
+    mock_page = mock.MagicMock()
+    mock_page.extract_text.return_value = "Total expenses: $54.32"
+    with mock.patch("app.pipeline.parser.PdfReader") as mock_reader:
+        mock_reader.return_value.pages = [mock_page]
+        result = parse("statement.pdf", b"fake pdf bytes")
+    assert "Total expenses" in result
+    assert "$54.32" in result
