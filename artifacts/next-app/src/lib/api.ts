@@ -1,6 +1,11 @@
 import type { Document, Source } from '@/types'
 
 const BASE = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '')
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? ''
+
+function authHeaders(): HeadersInit {
+  return API_KEY ? { 'X-API-Key': API_KEY } : {}
+}
 
 export interface UploadResponse {
   document_id: string
@@ -34,7 +39,11 @@ export function mapDocument(raw: RawDocument): Document {
 export async function uploadDocument(file: File): Promise<UploadResponse> {
   const formData = new FormData()
   formData.append('file', file)
-  const res = await fetch(`${BASE}/upload`, { method: 'POST', body: formData })
+  const res = await fetch(`${BASE}/upload`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: formData,
+  })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.detail ?? 'Upload failed')
@@ -48,7 +57,7 @@ export async function queryDocuments(
 ): Promise<QueryResponse> {
   const res = await fetch(`${BASE}/query`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ question, document_id: documentId ?? null }),
   })
   if (!res.ok) {
@@ -60,14 +69,17 @@ export async function queryDocuments(
 
 export async function fetchDocuments(): Promise<Document[]> {
   if (!BASE) return []
-  const res = await fetch(`${BASE}/documents`)
+  const res = await fetch(`${BASE}/documents`, { headers: authHeaders() })
   if (!res.ok) return []
   const data: RawDocument[] = await res.json()
   return Array.isArray(data) ? data.map(mapDocument) : []
 }
 
 export async function deleteDocument(id: string): Promise<void> {
-  const res = await fetch(`${BASE}/documents/${id}`, { method: 'DELETE' })
+  const res = await fetch(`${BASE}/documents/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.detail ?? 'Delete failed')

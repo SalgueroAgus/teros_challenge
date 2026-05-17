@@ -1,24 +1,31 @@
+import logging
+import os
 import uuid
 
 from fastapi import Depends, FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 from openai import OpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from app.dependencies import get_openai, get_supabase
+from app.dependencies import get_openai, get_supabase, verify_api_key
 from app.pipeline.ingest import ingest
 from supabase import Client
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="FinSight API", version="0.1.0")
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
+_raw_origins = os.environ.get("ALLOWED_ORIGINS", "*")
+_allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # locked down to Replit origin after deploy
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_allowed_origins,
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "X-API-Key"],
 )
 
 # Lambda entry point
@@ -44,7 +51,7 @@ EXPAND_PROMPT = (
 # ── Models ────────────────────────────────────────────────────────────────────
 
 class QueryRequest(BaseModel):
-    question: str
+    question: str = Field(..., min_length=1, max_length=500)
     document_id: str | None = None
 
 
@@ -66,7 +73,7 @@ def health():
     return {"status": "ok", "version": "0.1.0"}
 
 
-@app.post("/upload", status_code=202)
+@app.post("/upload", status_code=202, dependencies=[Depends(verify_api_key)])
 async def upload(
     file: UploadFile,
     supabase: Client = Depends(get_supabase),
@@ -94,14 +101,18 @@ async def upload(
     except ValueError as exc:
         supabase.table("documents").update({"status": "error"}).eq("id", document_id).execute()
         raise HTTPException(status_code=400, detail=str(exc))
-    except Exception as exc:
+    except Exception:
+        logger.exception("Ingest failed for document %s", document_id)
         supabase.table("documents").update({"status": "error"}).eq("id", document_id).execute()
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(
+            status_code=500,
+            detail="An internal error occurred while processing the file.",
+        )
 
     return {"document_id": document_id, "filename": file.filename, "status": "done"}
 
 
-@app.delete("/documents/{document_id}", status_code=200)
+@app.delete("/documents/{document_id}", status_code=200, dependencies=[Depends(verify_api_key)])
 def delete_document(document_id: str, supabase: Client = Depends(get_supabase)):
     result = supabase.table("documents").select("id").eq("id", document_id).execute()
     if not result.data:
@@ -111,7 +122,7 @@ def delete_document(document_id: str, supabase: Client = Depends(get_supabase)):
     return {"deleted": document_id}
 
 
-@app.get("/documents")
+@app.get("/documents", dependencies=[Depends(verify_api_key)])
 def list_documents(supabase: Client = Depends(get_supabase)):
     result = supabase.table("documents").select("*").order("uploaded_at", desc=True).execute()
     return result.data
@@ -130,7 +141,7 @@ def _expand_query(question: str, openai: OpenAI) -> str:
     return response.choices[0].message.content.strip()
 
 
-@app.post("/query", response_model=QueryResponse)
+@app.post("/query", response_model=QueryResponse, dependencies=[Depends(verify_api_key)])
 def query(
     body: QueryRequest,
     supabase: Client = Depends(get_supabase),

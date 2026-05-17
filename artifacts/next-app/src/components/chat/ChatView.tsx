@@ -21,6 +21,10 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
   const [isLoading, setIsLoading] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const [attachedFile, setAttachedFile] = useState<File | null>(null)
+  const [questionCount, setQuestionCount] = useState(0)
+
+  const QUESTION_LIMIT = 10
+  const limitReached = questionCount >= QUESTION_LIMIT
 
   // Document pinned for the whole chat session after an upload
   const [sessionDocumentId, setSessionDocumentId] = useState<string | null>(null)
@@ -59,7 +63,7 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
 
   async function handleSend(contentOverride?: string) {
     const content = (contentOverride ?? inputValue).trim()
-    if (!content || isLoading) return
+    if (!content || isLoading || limitReached) return
 
     const fileToUpload = attachedFile
 
@@ -74,6 +78,7 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
     setInputValue('')
     setAttachedFile(null)
     setIsLoading(true)
+    setQuestionCount((c) => c + 1)
 
     try {
       let documentId = effectiveDocumentId
@@ -134,19 +139,30 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
       </div>
 
       <div className="flex-shrink-0 pb-5 pt-3 px-0">
-        <ChatInput
-          value={inputValue}
-          onChange={setInputValue}
-          onSubmit={handleSend}
-          attachedFile={attachedFile}
-          onAttach={handleAttach}
-          onRemoveAttachment={() => setAttachedFile(null)}
-          isLoading={isLoading}
-          activeDocumentName={effectiveDocumentName}
-          onClearActiveDocument={
-            sessionDocumentId ? () => { setSessionDocumentId(null); setSessionDocumentName(null) } : undefined
-          }
-        />
+        {limitReached ? (
+          <div className="w-full max-w-2xl mx-auto px-4">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-3 text-center">
+              <p className="text-sm text-[#64748B]">
+                Session limit of {QUESTION_LIMIT} questions reached.
+              </p>
+              <p className="text-xs text-[#94A3B8] mt-0.5">Refresh the page to start a new session.</p>
+            </div>
+          </div>
+        ) : (
+          <ChatInput
+            value={inputValue}
+            onChange={setInputValue}
+            onSubmit={handleSend}
+            attachedFile={attachedFile}
+            onAttach={handleAttach}
+            onRemoveAttachment={() => setAttachedFile(null)}
+            isLoading={isLoading}
+            activeDocumentName={effectiveDocumentName}
+            onClearActiveDocument={
+              sessionDocumentId ? () => { setSessionDocumentId(null); setSessionDocumentName(null) } : undefined
+            }
+          />
+        )}
       </div>
     </div>
   )
