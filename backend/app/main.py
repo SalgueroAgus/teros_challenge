@@ -1,5 +1,4 @@
 import logging
-import os
 import uuid
 
 from fastapi import Depends, FastAPI, HTTPException, UploadFile
@@ -18,12 +17,9 @@ app = FastAPI(title="FinSight API", version="0.1.0")
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
-_raw_origins = os.environ.get("ALLOWED_ORIGINS", "*")
-_allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_allowed_origins,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
