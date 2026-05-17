@@ -174,7 +174,11 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
     setQuestionCount((c) => c + 1)
 
     try {
-      const { answer, sources } = await queryDocuments(content, documentId)
+      const history = messages
+        .filter((m) => m.role === 'user' || m.role === 'assistant')
+        .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+
+      const { answer, sources } = await queryDocuments(content, documentId, history)
       setMessages((prev) => [
         ...prev,
         {

@@ -48,9 +48,15 @@ EXPAND_PROMPT = (
 
 # ── Models ────────────────────────────────────────────────────────────────────
 
+class HistoryMessage(BaseModel):
+    role: str  # "user" | "assistant"
+    content: str
+
+
 class QueryRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=500)
     document_id: str | None = None
+    history: list[HistoryMessage] = []
 
 
 class Source(BaseModel):
@@ -226,6 +232,7 @@ def query(
     context = "\n\n---\n\n".join(row["content"] for row in matches.data)
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
+        *[{"role": m.role, "content": m.content} for m in body.history],
         {
             "role": "user",
             "content": f"Document excerpts:\n\n{context}\n\nQuestion: {body.question}",
