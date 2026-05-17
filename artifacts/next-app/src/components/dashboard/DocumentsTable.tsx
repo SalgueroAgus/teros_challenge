@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { MessageSquare } from 'lucide-react'
+import { MessageSquare, Trash2 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import type { Document, DocumentStatus } from '@/types'
@@ -9,6 +9,8 @@ import type { Document, DocumentStatus } from '@/types'
 interface DocumentsTableProps {
   documents: Document[]
   isLoading: boolean
+  onDelete?: (id: string) => void
+  isDeleting?: boolean
 }
 
 function StatusBadge({ status }: { status: DocumentStatus }) {
@@ -79,7 +81,7 @@ function SkeletonRow() {
   )
 }
 
-export function DocumentsTable({ documents, isLoading }: DocumentsTableProps) {
+export function DocumentsTable({ documents, isLoading, onDelete, isDeleting }: DocumentsTableProps) {
   return (
     <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100">
@@ -144,15 +146,31 @@ export function DocumentsTable({ documents, isLoading }: DocumentsTableProps) {
                     {formatDate(doc.uploadedAt)}
                   </td>
                   <td className="px-4 py-3">
-                    {doc.status === 'done' && (
-                      <Link
-                        href={`/chat?docId=${doc.id}&docName=${encodeURIComponent(doc.filename)}`}
-                        className="flex items-center gap-1 text-xs text-[#4F6CF7] hover:text-[#3B5BDB] font-medium whitespace-nowrap"
-                      >
-                        <MessageSquare size={13} />
-                        Ask
-                      </Link>
-                    )}
+                    <div className="flex items-center gap-3">
+                      {doc.status === 'done' && (
+                        <Link
+                          href={`/chat?docId=${doc.id}&docName=${encodeURIComponent(doc.filename)}`}
+                          className="flex items-center gap-1 text-xs text-[#4F6CF7] hover:text-[#3B5BDB] font-medium whitespace-nowrap"
+                        >
+                          <MessageSquare size={13} />
+                          Ask
+                        </Link>
+                      )}
+                      {onDelete && (
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Delete "${doc.filename}"? This cannot be undone.`)) {
+                              onDelete(doc.id)
+                            }
+                          }}
+                          disabled={isDeleting}
+                          className="text-[#94A3B8] hover:text-red-500 disabled:opacity-40"
+                          aria-label={`Delete ${doc.filename}`}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))

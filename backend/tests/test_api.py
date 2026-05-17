@@ -123,3 +123,40 @@ def test_query_global_uses_default_threshold(api_client, mock_supabase, mock_ope
     api_client.post("/query", json={"question": "What are my expenses?"})
     call_kwargs = mock_supabase.rpc.call_args[0][1]
     assert call_kwargs["match_threshold"] == 0.3
+
+
+def test_upload_too_large_returns_413(api_client, mock_supabase):
+    oversized = b"x" * (10 * 1024 * 1024 + 1)
+    response = api_client.post(
+        "/upload",
+        files={"file": ("big.csv", io.BytesIO(oversized), "text/csv")},
+    )
+    assert response.status_code == 413
+
+
+def test_upload_duplicate_filename_returns_409(api_client, mock_supabase):
+    mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = (
+        MagicMock(data=[{"id": "existing-id"}])
+    )
+    response = api_client.post(
+        "/upload",
+        files={"file": ("statement.csv", io.BytesIO(b"Date,Amount\n"), "text/csv")},
+    )
+    assert response.status_code == 409
+
+
+def test_delete_document_success(api_client, mock_supabase):
+    mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = (
+        MagicMock(data=[{"id": "doc-id"}])
+    )
+    response = api_client.delete("/documents/doc-id")
+    assert response.status_code == 200
+    assert response.json()["deleted"] == "doc-id"
+
+
+def test_delete_document_not_found_returns_404(api_client, mock_supabase):
+    mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = (
+        MagicMock(data=[])
+    )
+    response = api_client.delete("/documents/nonexistent-id")
+    assert response.status_code == 404

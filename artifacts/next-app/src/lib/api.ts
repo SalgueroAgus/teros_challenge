@@ -65,3 +65,11 @@ export async function fetchDocuments(): Promise<Document[]> {
   const data: RawDocument[] = await res.json()
   return Array.isArray(data) ? data.map(mapDocument) : []
 }
+
+export async function deleteDocument(id: string): Promise<void> {
+  const res = await fetch(`${BASE}/documents/${id}`, { method: 'DELETE' })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail ?? 'Delete failed')
+  }
+}
