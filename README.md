@@ -40,10 +40,17 @@ FinSight lets users upload financial documents (PDFs, CSVs, images) and chat wit
 │       Next.js 15 — Replit               │
 │  Dashboard · Documents · Chat           │
 │  Rate-limited: 25 questions/session     │
+│                                         │
+│  /api/upload      ◄── Route Handlers    │
+│  /api/query            (server-side)    │
+│  /api/documents        API_KEY added    │
+│  /api/documents/[id]   here, never      │
+│                        sent to browser  │
 └──────────┬───────────────┬──────────────┘
            │               │
      upload file      ask question
      X-API-Key        X-API-Key
+     (server-side)    (server-side)
            │               │
            ▼               ▼
 ┌─────────────────────────────────────────┐
@@ -76,7 +83,7 @@ FinSight lets users upload financial documents (PDFs, CSVs, images) and chat wit
 └──────────────────┘   └───────────────────┘
 ```
 
-**Upload flow:** `POST /upload` → validate (size ≤ 10 MB, no duplicate filename) → insert document as `pending` → return `202` immediately → *(background task)* parse (PDF/CSV/image) → chunk → embed (`text-embedding-3-small`) → store in `document_chunks` → mark document `done`
+**Upload flow:** `POST /upload` → validate (size ≤ 10 MB, no duplicate filename) → insert document as `pending` → return `202` immediately → *(background task)* parse (PDF/CSV/image) → chunk → embed (`text-embedding-3-small`) → store in `document_chunks` → mark document `done`. The frontend attaches and uploads immediately on file selection, polling `GET /documents` every 2 s until the status reaches `done` or `error` before allowing the user to send a message.
 
 **Query flow:** `POST /query` → expand question → embed → hybrid dense+sparse search → top-5 chunks by RRF score → GPT-4o-mini → answer + sources
 
@@ -170,9 +177,9 @@ pnpm install
 # 2. Configure env vars
 cp .env.local.example .env.local
 # Edit .env.local:
-#   NEXT_PUBLIC_API_URL=http://localhost:8000        (local backend)
-#   NEXT_PUBLIC_API_URL=https://tzywgdhhkg.execute-api.us-east-1.amazonaws.com  (Lambda)
-#   NEXT_PUBLIC_API_KEY=<your-api-key>               (must match API_KEY in Lambda env)
+#   API_URL=http://localhost:8000        (local backend)
+#   API_URL=https://tzywgdhhkg.execute-api.us-east-1.amazonaws.com  (Lambda)
+#   API_KEY=<your-api-key>               (must match API_KEY in Lambda env)
 
 # 3. Start the dev server (clear cache if switching backends)
 rm -rf .next
@@ -201,9 +208,11 @@ Example output: `a3f8c2e1d4b7960f5e2a1c8d3b6e9f4a2c5d8e1f4b7a0c3d6e9f2a5b8c1d4e7
 
 Set the same value in two places:
 1. **Lambda environment variable** `API_KEY=<value>` (via AWS Console or CLI)
-2. **Replit secret** `NEXT_PUBLIC_API_KEY=<value>`
+2. **Replit secret** `API_KEY=<value>`
 
-> **Note:** `NEXT_PUBLIC_*` variables are visible in the browser bundle. This key prevents casual abuse from unauthenticated curl requests. For production systems handling sensitive data, route API calls through a Next.js server-side API route so the key never reaches the client.
+The key is read by Next.js Route Handlers on the server and attached to every outbound request to Lambda. **The key and the Lambda URL never appear in the browser bundle** — the browser only ever calls `/api/*` on the same Replit origin.
+
+> **Production note:** This prevents credential exposure but does not scope data per user. For a multi-user deployment, add Supabase Auth and Row Level Security (RLS) policies so each user can only access their own documents.
 
 ### Configuring CORS
 
@@ -292,6 +301,8 @@ curl https://tzywgdhhkg.execute-api.us-east-1.amazonaws.com/documents \
 ```
 
 Possible `status` values: `pending` · `done` · `error`
+
+The frontend polls this endpoint every 2 s after a file upload until the document status reaches `done` or `error`.
 
 ---
 
@@ -501,8 +512,8 @@ The CLI records applied migrations in a `supabase_migrations` table — it never
 
 | Variable | Required | Description |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | yes | Base URL of the FastAPI backend (no trailing slash) |
-| `NEXT_PUBLIC_API_KEY` | no | Must match `API_KEY` set in the Lambda environment; if unset, the header is omitted |
+| `API_URL` | yes | Base URL of the FastAPI backend — read server-side only, never sent to the browser |
+| `API_KEY` | yes (production) | Must match `API_KEY` set in the Lambda environment. Optional in local dev only — if unset, the header is omitted and the backend skips the key check |
 
 ### GitHub Actions secrets
 
@@ -559,9 +570,11 @@ API_KEY             = <generated with openssl rand -hex 32>
 Set the following in Replit → Secrets:
 
 ```
-NEXT_PUBLIC_API_URL = https://tzywgdhhkg.execute-api.us-east-1.amazonaws.com
-NEXT_PUBLIC_API_KEY = <same value as API_KEY in Lambda>
+API_URL = https://tzywgdhhkg.execute-api.us-east-1.amazonaws.com
+API_KEY = <same value as API_KEY in Lambda>
 ```
+
+These are server-side environment variables. They are read by the Next.js Route Handlers and are never included in the browser bundle.
 
 Push to the connected GitHub repo — Replit auto-redeploys on the next page load (or manually via the Replit "Deploy" button).
 
@@ -578,7 +591,12 @@ teros_challenge/
 │       │   ├── app/                 ← App Router pages
 │       │   │   ├── page.tsx         ← Dashboard (/)
 │       │   │   ├── chat/page.tsx    ← Chat view (/chat)
-│       │   │   └── documents/       ← Documents page
+│       │   │   ├── documents/       ← Documents page
+│       │   │   └── api/             ← Route Handlers (server-side proxy)
+│       │   │       ├── upload/      ←   POST  /api/upload
+│       │   │       ├── query/       ←   POST  /api/query
+│       │   │       └── documents/   ←   GET   /api/documents
+│       │   │           └── [id]/    ←   DELETE /api/documents/[id]
 │       │   ├── components/
 │       │   │   ├── chat/            ← ChatView, ChatInput, MessageBubble, SuggestionCards
 │       │   │   ├── dashboard/       ← SummaryCard, DocumentsTable (with delete)
@@ -586,7 +604,7 @@ teros_challenge/
 │       │   ├── hooks/
 │       │   │   └── useDocuments.ts  ← useDocuments (polling) + useDeleteDocument (mutation)
 │       │   ├── lib/
-│       │   │   ├── api.ts           ← Typed API client (upload, query, fetchDocuments, deleteDocument)
+│       │   │   ├── api.ts           ← Typed API client — calls /api/* only, no credentials
 │       │   │   └── chat-context.tsx ← Chat session context (messages, history, doc pin) — persists across tab navigation
 │       │   └── types/
 │       │       └── index.ts         ← Document, Message, Source types
@@ -644,9 +662,3 @@ A custom Claude Code skill is configured at `.claude/skills/cicd-master/SKILL.md
 - Every PR gets the `ci/cd` label and a standard body template
 
 ---
-
-## Known Issues
-
-| Issue | Root cause | Priority |
-|---|---|---|
-| Inter font falls back to system font | `next/font/google` sets `--font-inter` but `globals.css` maps `--font-sans` — variable name mismatch | Low — cosmetic only |
