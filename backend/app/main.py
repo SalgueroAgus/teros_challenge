@@ -1,6 +1,7 @@
 import logging
 import math
 import uuid
+from typing import Literal
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -49,7 +50,7 @@ EXPAND_PROMPT = (
 # ── Models ────────────────────────────────────────────────────────────────────
 
 class HistoryMessage(BaseModel):
-    role: str  # "user" | "assistant"
+    role: Literal["user", "assistant"]
     content: str
 
 

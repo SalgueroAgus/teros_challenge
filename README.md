@@ -471,6 +471,46 @@ The `60` constant is standard from the original RRF paper — it down-weights lo
 
 Retrieved chunks are passed to GPT-4o-mini with a system prompt that instructs it to answer using only the provided context, or say it doesn't know if the context is insufficient. This prevents hallucination about financial data.
 
+The query endpoint also accepts an optional `history` array of previous `{role, content}` turns. When provided, the full session history is injected between the system prompt and the current user message, giving the model memory of the conversation without re-embedding prior turns.
+
+### Tested document types & what works best
+
+The RAG pipeline has been validated end-to-end with the following document formats. Results outside these types may vary.
+
+**CSVs — best results**
+
+CSVs with clear, descriptive column headers produce the most reliable answers. The `chunk_csv` strategy serialises each row as `Column: value` pairs so the model always has column context alongside the raw numbers. Tested files:
+
+| File | Description |
+|---|---|
+| `backend/tests/BankStatement_2024.csv` | 3-month chequing statement (Jan–Mar 2024) — payroll, rent, groceries, fees, subscriptions, ATM withdrawals |
+
+Questions that work well with well-structured CSVs:
+- *"How much did I spend on groceries?"* — category-based aggregation
+- *"Who are my recurring monthly payments?"* — pattern detection across rows
+- *"What is my closing balance?"* — direct value lookup
+
+> **Known limitation:** CSVs without a `Category` column or with generic `Description` values (e.g. bare amounts with no merchant name) will produce weaker retrieval — the model has no semantic signal to match against category-style questions. Descriptive column names and merchant descriptions are the biggest factor in answer quality.
+
+**Images — good results for structured statements**
+
+Bank statement scans and receipts are parsed via GPT-4o-mini vision before chunking. Printed, high-contrast documents work best. Tested files:
+
+| File | Description |
+|---|---|
+| `backend/tests/BankStatementChequing.png` | Scanned chequing account statement (First Bank of Wiki, Oct–Nov 2003) — fees, Interac purchases, payroll deposits, bill payments |
+
+Questions that work well with statement images:
+- *"How much was charged in fees?"*
+- *"What Interac transactions appear on the statement?"*
+- *"How much was deposited and how much was withdrawn?"*
+
+> **Known limitation:** Handwritten documents, low-resolution scans, and heavily formatted PDFs (multi-column layouts, tables with merged cells) reduce extraction quality. Plain printed statements with clear tabular rows work best.
+
+**PDFs — works for text-based documents**
+
+Text-extractable PDFs (not scanned) are chunked with the 500-token sliding window. Scanned PDFs are not supported — use the image upload path instead.
+
 ---
 
 ## Database Migrations

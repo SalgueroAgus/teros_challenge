@@ -4,6 +4,17 @@ import Link from 'next/link'
 import { ChevronLeft, ChevronRight, MessageSquare, Trash2 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import type { Document, DocumentStatus } from '@/types'
 
 interface DocumentsTableProps {
@@ -55,6 +66,44 @@ function formatDate(dateStr: string) {
   } catch {
     return dateStr
   }
+}
+
+function DeleteButton({
+  filename,
+  onConfirm,
+  disabled,
+}: {
+  filename: string
+  onConfirm: () => void
+  disabled?: boolean
+}) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <button
+          disabled={disabled}
+          title="Delete document"
+          className="w-7 h-7 flex items-center justify-center rounded-md text-[#94A3B8] hover:text-red-500 hover:bg-red-50 disabled:opacity-40"
+          aria-label={`Delete ${filename}`}
+        >
+          <Trash2 size={14} />
+        </button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete document?</AlertDialogTitle>
+          <AlertDialogDescription>
+            <span className="font-medium text-[#0F172A]">&ldquo;{filename}&rdquo;</span> and all its
+            indexed chunks will be permanently removed. This cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>Delete</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
 }
 
 const ROW_HEIGHT = 'h-[53px]'
@@ -144,15 +193,7 @@ export function DocumentsTable({
                   </Link>
                 )}
                 {onDelete && (
-                  <button
-                    onClick={() => {
-                      if (window.confirm(`Delete "${doc.filename}"?`)) onDelete(doc.id)
-                    }}
-                    disabled={isDeleting}
-                    className="w-7 h-7 flex items-center justify-center rounded-md text-[#94A3B8] hover:text-red-500 hover:bg-red-50 disabled:opacity-40"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  <DeleteButton filename={doc.filename} onConfirm={() => onDelete(doc.id)} disabled={isDeleting} />
                 )}
               </div>
             </div>
@@ -228,19 +269,7 @@ export function DocumentsTable({
                           </Link>
                         )}
                         {onDelete && (
-                          <button
-                            onClick={() => {
-                              if (window.confirm(`Delete "${doc.filename}"? This cannot be undone.`)) {
-                                onDelete(doc.id)
-                              }
-                            }}
-                            disabled={isDeleting}
-                            title="Delete document"
-                            className="w-7 h-7 flex items-center justify-center rounded-md text-[#94A3B8] hover:text-red-500 hover:bg-red-50 disabled:opacity-40"
-                            aria-label={`Delete ${doc.filename}`}
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          <DeleteButton filename={doc.filename} onConfirm={() => onDelete(doc.id)} disabled={isDeleting} />
                         )}
                       </div>
                     </td>
