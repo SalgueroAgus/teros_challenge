@@ -121,7 +121,9 @@ async def upload(
         {"id": document_id, "filename": file.filename, "status": "pending"}
     ).execute()
 
-    background_tasks.add_task(_ingest_and_update, file.filename, content, document_id, supabase, openai)
+    background_tasks.add_task(
+        _ingest_and_update, file.filename, content, document_id, supabase, openai
+    )
 
     return {"document_id": document_id, "filename": file.filename, "status": "pending"}
 
