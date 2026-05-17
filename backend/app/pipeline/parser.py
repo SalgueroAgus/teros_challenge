@@ -5,9 +5,8 @@ import csv
 import io
 from pathlib import Path
 
+from openai import OpenAI
 from pypdf import PdfReader
-
-from app.dependencies import get_openai
 
 # GPT-4o Vision supported formats only (TIFF not supported by the API)
 _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
@@ -25,14 +24,16 @@ _VISION_PROMPT = (
 )
 
 
-def parse(filename: str, content: bytes) -> str:
+def parse(filename: str, content: bytes, openai: OpenAI | None = None) -> str:
     ext = Path(filename).suffix.lower()
     if ext == ".pdf":
         text = _parse_pdf(content)
     elif ext == ".csv":
         text = _parse_csv(content)
     elif ext in _IMAGE_EXTS:
-        text = _parse_image(content, ext)
+        if openai is None:
+            raise ValueError("An OpenAI client is required to parse image files.")
+        text = _parse_image(content, ext, openai)
     else:
         raise ValueError(f"Unsupported file type: {ext}")
     # PostgreSQL rejects null bytes in text columns; strip them from all sources
@@ -52,11 +53,10 @@ def _parse_csv(content: bytes) -> str:
     return "\n".join(rows).strip()
 
 
-def _parse_image(content: bytes, ext: str) -> str:
+def _parse_image(content: bytes, ext: str, openai: OpenAI) -> str:
     mime = _IMAGE_MIME[ext]
     b64 = base64.standard_b64encode(content).decode()
-    client = get_openai()
-    response = client.chat.completions.create(
+    response = openai.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{
             "role": "user",

@@ -83,6 +83,7 @@ def health():
 async def upload(
     file: UploadFile,
     supabase: Client = Depends(get_supabase),
+    openai: OpenAI = Depends(get_openai),
 ):
     content = await file.read()
 
@@ -103,7 +104,7 @@ async def upload(
     ).execute()
 
     try:
-        ingest(file.filename, content, document_id)
+        ingest(file.filename, content, document_id, supabase, openai)
     except ValueError as exc:
         supabase.table("documents").update({"status": "error"}).eq("id", document_id).execute()
         raise HTTPException(status_code=400, detail=str(exc))

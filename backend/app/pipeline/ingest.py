@@ -6,20 +6,19 @@ preserves column headers in every chunk for accurate retrieval.
 
 from pathlib import Path
 
-from app.dependencies import get_openai, get_supabase
+from openai import OpenAI
+from supabase import Client
+
 from app.pipeline.chunker import chunk, chunk_csv
 from app.pipeline.embedder import embed_and_store
 from app.pipeline.parser import parse
 
 
-def ingest(filename: str, content: bytes, document_id: str) -> None:
-    supabase = get_supabase()
-    openai = get_openai()
-
+def ingest(filename: str, content: bytes, document_id: str, supabase: Client, openai: OpenAI) -> None:
     if Path(filename).suffix.lower() == ".csv":
         chunks = chunk_csv(content)
     else:
-        text = parse(filename, content)
+        text = parse(filename, content, openai)
         chunks = chunk(text)
 
     embed_and_store(chunks, document_id, supabase, openai)
