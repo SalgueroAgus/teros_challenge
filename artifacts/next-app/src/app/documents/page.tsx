@@ -1,6 +1,7 @@
 'use client'
 
 import { DocumentsTable } from '@/components/dashboard/DocumentsTable'
+import { DocumentUploadZone } from '@/components/dashboard/DocumentUploadZone'
 import { useDeleteDocument, useDocuments } from '@/hooks/useDocuments'
 
 export default function DocumentsPage() {
@@ -16,6 +17,7 @@ export default function DocumentsPage() {
             Manage your uploaded financial documents
           </p>
         </div>
+        <DocumentUploadZone />
         <DocumentsTable
           documents={documents ?? []}
           isLoading={isLoading}

@@ -146,14 +146,14 @@ export function DocumentsTable({ documents, isLoading, onDelete, isDeleting }: D
                     {formatDate(doc.uploadedAt)}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1">
                       {doc.status === 'done' && (
                         <Link
                           href={`/chat?docId=${doc.id}&docName=${encodeURIComponent(doc.filename)}`}
-                          className="flex items-center gap-1 text-xs text-[#4F6CF7] hover:text-[#3B5BDB] font-medium whitespace-nowrap"
+                          title="Ask questions about this document"
+                          className="w-7 h-7 flex items-center justify-center rounded-md text-[#4F6CF7] hover:bg-[#EEF2FF]"
                         >
-                          <MessageSquare size={13} />
-                          Ask
+                          <MessageSquare size={14} />
                         </Link>
                       )}
                       {onDelete && (
@@ -164,7 +164,8 @@ export function DocumentsTable({ documents, isLoading, onDelete, isDeleting }: D
                             }
                           }}
                           disabled={isDeleting}
-                          className="text-[#94A3B8] hover:text-red-500 disabled:opacity-40"
+                          title="Delete document"
+                          className="w-7 h-7 flex items-center justify-center rounded-md text-[#94A3B8] hover:text-red-500 hover:bg-red-50 disabled:opacity-40"
                           aria-label={`Delete ${doc.filename}`}
                         >
                           <Trash2 size={14} />
