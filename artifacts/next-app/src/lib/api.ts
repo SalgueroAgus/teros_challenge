@@ -47,14 +47,20 @@ export async function uploadDocument(file: File): Promise<UploadResponse> {
   return res.json()
 }
 
+export interface HistoryMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 export async function queryDocuments(
   question: string,
-  documentId?: string | null
+  documentId?: string | null,
+  history: HistoryMessage[] = [],
 ): Promise<QueryResponse> {
   const res = await fetch(`${BASE}/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, document_id: documentId ?? null }),
+    body: JSON.stringify({ question, document_id: documentId ?? null, history }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
