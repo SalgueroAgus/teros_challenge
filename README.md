@@ -39,7 +39,7 @@ FinSight lets users upload financial documents (PDFs, CSVs, images) and chat wit
 ┌─────────────────────────────────────────┐
 │       Next.js 15 — Replit               │
 │  Dashboard · Documents · Chat           │
-│  Rate-limited: 10 questions/session     │
+│  Rate-limited: 25 questions/session     │
 └──────────┬───────────────┬──────────────┘
            │               │
      upload file      ask question
@@ -207,17 +207,9 @@ Set the same value in two places:
 
 ### Configuring CORS
 
-The backend reads the `ALLOWED_ORIGINS` Lambda environment variable (comma-separated list of allowed origins). When unset it defaults to `*` so local development works without any configuration.
+The backend allows all origins (`*`) at the FastAPI level. Origin-level restriction is intentionally omitted because the `X-API-Key` header already prevents unauthorized access — CORS origin headers are trivially spoofable outside a browser and add no meaningful security on top of a key check.
 
-```bash
-# In AWS Lambda → Configuration → Environment variables:
-ALLOWED_ORIGINS=https://next-tailwind-setup--salguerocuentas.replit.app
-
-# Multiple origins (e.g. Replit + local):
-ALLOWED_ORIGINS=https://next-tailwind-setup--salguerocuentas.replit.app,http://localhost:3000
-```
-
-Only `GET`, `POST`, `DELETE`, and `OPTIONS` methods are permitted. Only `Content-Type` and `X-API-Key` headers are accepted.
+API Gateway is configured with `AllowOrigins: ["*"]` to ensure preflight OPTIONS requests are handled correctly before reaching Lambda.
 
 ---
 
@@ -505,7 +497,6 @@ The CLI records applied migrations in a `supabase_migrations` table — it never
 | `SUPABASE_URL` | yes | Project URL from Supabase → Settings → API |
 | `SUPABASE_SECRET_KEY` | yes | Service role key — bypasses RLS; server-side only |
 | `API_KEY` | no | Random secret sent by the frontend as `X-API-Key`; if unset, auth is disabled (local dev only) |
-| `ALLOWED_ORIGINS` | no | Comma-separated CORS origins (e.g. `https://your-app.replit.app`); defaults to `*` if unset |
 
 ### Frontend — `artifacts/next-app/.env.local`
 
@@ -556,7 +547,6 @@ OPENAI_API_KEY      = <from OpenAI>
 SUPABASE_URL        = <from Supabase>
 SUPABASE_SECRET_KEY = <from Supabase>
 API_KEY             = <generated with openssl rand -hex 32>
-ALLOWED_ORIGINS     = https://next-tailwind-setup--salguerocuentas.replit.app
 ```
 
 ### Frontend — Replit
@@ -591,7 +581,8 @@ teros_challenge/
 │       │   ├── hooks/
 │       │   │   └── useDocuments.ts  ← useDocuments (polling) + useDeleteDocument (mutation)
 │       │   ├── lib/
-│       │   │   └── api.ts           ← Typed API client (upload, query, fetchDocuments, deleteDocument)
+│       │   │   ├── api.ts           ← Typed API client (upload, query, fetchDocuments, deleteDocument)
+│       │   │   └── chat-context.tsx ← Chat session context (messages, history, doc pin) — persists across tab navigation
 │       │   └── types/
 │       │       └── index.ts         ← Document, Message, Source types
 │       ├── .env.local.example
