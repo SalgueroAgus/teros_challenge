@@ -1,4 +1,4 @@
-export type DocumentStatus = 'pending' | 'processing' | 'done' | 'error'
+export type DocumentStatus = 'pending' | 'done' | 'error'
 
 export type FileUploadState = 'idle' | 'uploading' | 'processing' | 'done' | 'error'
 

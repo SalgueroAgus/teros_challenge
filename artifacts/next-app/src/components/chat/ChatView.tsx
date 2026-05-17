@@ -238,7 +238,13 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
                 Start a new session to continue — your documents will remain available.
               </p>
               <button
-                onClick={() => window.location.reload()}
+                onClick={() => {
+                  setMessages([])
+                  setQuestionCount(0)
+                  setSessionDocumentId(null)
+                  setSessionDocumentName(null)
+                  handleRemoveAttachment()
+                }}
                 className="px-4 py-2 bg-[#4F6CF7] text-white text-sm font-medium rounded-lg hover:bg-[#3B5BDB] focus:outline-none focus:ring-2 focus:ring-[#4F6CF7] focus:ring-offset-1"
               >
                 Start new session
