@@ -2,14 +2,16 @@
 
 import { useRef, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Paperclip, Send, X } from 'lucide-react'
+import { AlertCircle, Check, Loader2, Paperclip, Send, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { FileUploadState } from '@/types'
 
 interface ChatInputProps {
   value: string
   onChange: (value: string) => void
   onSubmit: () => void
   attachedFile: File | null
+  fileUploadState: FileUploadState
   onAttach: (file: File) => void
   onRemoveAttachment: () => void
   isLoading: boolean
@@ -29,6 +31,7 @@ export function ChatInput({
   onChange,
   onSubmit,
   attachedFile,
+  fileUploadState,
   onAttach,
   onRemoveAttachment,
   isLoading,
@@ -57,11 +60,14 @@ export function ChatInput({
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      if (!isLoading && value.trim()) {
+      if (!isLoading && value.trim() && fileUploadState !== 'uploading' && fileUploadState !== 'processing') {
         onSubmit()
       }
     }
   }
+
+  const isFileProcessing = fileUploadState === 'uploading' || fileUploadState === 'processing'
+  const sendDisabled = isLoading || !value.trim() || isFileProcessing
 
   return (
     <div
@@ -93,9 +99,42 @@ export function ChatInput({
       {/* File attachment chip */}
       {attachedFile && (
         <div className="flex items-center gap-2 mb-2 px-1">
-          <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-[#0F172A] shadow-sm">
-            <Paperclip size={12} className="text-[#64748B] flex-shrink-0" />
-            <span className="truncate max-w-[200px]">{attachedFile.name}</span>
+          <div
+            className={cn(
+              'flex items-center gap-1.5 bg-white rounded-lg px-2.5 py-1.5 text-xs shadow-sm border transition-colors',
+              fileUploadState === 'done'
+                ? 'border-green-400'
+                : fileUploadState === 'error'
+                  ? 'border-red-400'
+                  : 'border-gray-200'
+            )}
+          >
+            {/* Left status icon */}
+            {isFileProcessing && (
+              <Loader2 size={12} className="animate-spin text-[#64748B] flex-shrink-0" />
+            )}
+            {fileUploadState === 'done' && (
+              <Check size={12} className="text-green-500 flex-shrink-0" />
+            )}
+            {fileUploadState === 'error' && (
+              <AlertCircle size={12} className="text-red-500 flex-shrink-0" />
+            )}
+            {fileUploadState === 'idle' && (
+              <Paperclip size={12} className="text-[#64748B] flex-shrink-0" />
+            )}
+
+            <span
+              className={cn(
+                'truncate max-w-[200px]',
+                fileUploadState === 'done' && 'text-green-700',
+                fileUploadState === 'error' && 'text-red-600',
+                (isFileProcessing || fileUploadState === 'idle') && 'text-[#0F172A]'
+              )}
+            >
+              {attachedFile.name}
+            </span>
+
+            {/* Remove button — always available so users can cancel mid-upload */}
             <button
               onClick={onRemoveAttachment}
               className="ml-1 text-[#64748B] hover:text-red-500 flex-shrink-0"
@@ -104,6 +143,13 @@ export function ChatInput({
               <X size={12} />
             </button>
           </div>
+
+          {/* Processing hint */}
+          {isFileProcessing && (
+            <span className="text-xs text-[#94A3B8]">
+              {fileUploadState === 'uploading' ? 'Uploading…' : 'Processing…'}
+            </span>
+          )}
         </div>
       )}
 
@@ -147,7 +193,11 @@ export function ChatInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask me anything about your finances..."
+          placeholder={
+            isFileProcessing
+              ? 'Waiting for file to finish processing…'
+              : 'Ask me anything about your finances...'
+          }
           disabled={isLoading}
           rows={1}
           className={cn(
@@ -166,8 +216,8 @@ export function ChatInput({
         {/* Send button */}
         <button
           type="button"
-          onClick={onSubmit}
-          disabled={isLoading || !value.trim()}
+          onClick={() => onSubmit()}
+          disabled={sendDisabled}
           className={cn(
             'flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg',
             'bg-[#4F6CF7] text-white',

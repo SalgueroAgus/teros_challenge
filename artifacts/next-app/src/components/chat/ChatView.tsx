@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import type { Message } from '@/types'
-import { uploadDocument, queryDocuments } from '@/lib/api'
+import type { Message, FileUploadState } from '@/types'
+import { uploadDocument, queryDocuments, pollDocumentReady } from '@/lib/api'
 import { useChatSession } from '@/lib/chat-context'
 import { MessageBubble, LoadingBubble } from './MessageBubble'
 import { ChatInput } from './ChatInput'
@@ -21,7 +21,6 @@ function generateId() {
 }
 
 export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps) {
-  // Persistent across tab navigation — lives in context above the route
   const {
     messages,
     setMessages,
@@ -33,17 +32,45 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
     setSessionDocumentName,
   } = useChatSession()
 
-  // Transient — fine to lose on tab switch
   const [isLoading, setIsLoading] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const [attachedFile, setAttachedFile] = useState<File | null>(null)
+  const [fileUploadState, setFileUploadState] = useState<FileUploadState>('idle')
+  const [uploadedDocumentId, setUploadedDocumentId] = useState<string | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+
+  // Tracks the document_id of the currently in-flight upload so stale callbacks
+  // (from a removed attachment) don't update state after the fact.
+  const activeUploadIdRef = useRef<string | null>(null)
+  const pollAbortRef = useRef<AbortController | null>(null)
 
   const limitReached = questionCount >= QUESTION_LIMIT
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-  function handleAttach(file: File) {
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'instant' })
+    }
+  }, [messages, isLoading])
+
+  function showToast(msg: string) {
+    setToast(msg)
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  function handleRemoveAttachment() {
+    // Abort any in-flight poll so it stops making requests
+    pollAbortRef.current?.abort()
+    pollAbortRef.current = null
+    activeUploadIdRef.current = null
+    setAttachedFile(null)
+    setFileUploadState('idle')
+    setUploadedDocumentId(null)
+  }
+
+  async function handleAttach(file: File) {
     if (file.size > MAX_FILE_BYTES) {
       setMessages((prev) => [
         ...prev,
@@ -56,24 +83,83 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
       ])
       return
     }
+
+    // Cancel any previous in-flight upload
+    pollAbortRef.current?.abort()
+    const abortController = new AbortController()
+    pollAbortRef.current = abortController
+
     setAttachedFile(file)
+    setFileUploadState('uploading')
+    setUploadedDocumentId(null)
+
+    let docId: string
+    try {
+      const uploaded = await uploadDocument(file)
+      docId = uploaded.document_id
+    } catch (err) {
+      if (!pollAbortRef.current || pollAbortRef.current === abortController) {
+        setFileUploadState('error')
+        showToast(`Upload failed: ${err instanceof Error ? err.message : 'Please try again.'}`)
+        setTimeout(() => handleRemoveAttachment(), 3000)
+      }
+      return
+    }
+
+    // If the user removed the file while the HTTP request was in flight, bail out.
+    if (abortController.signal.aborted) return
+
+    activeUploadIdRef.current = docId
+    setFileUploadState('processing')
+
+    try {
+      const result = await pollDocumentReady(docId, abortController.signal)
+
+      // Guard: user may have removed the file while we were polling
+      if (activeUploadIdRef.current !== docId) return
+
+      if (result === 'done') {
+        setFileUploadState('done')
+        setUploadedDocumentId(docId)
+      } else {
+        setFileUploadState('error')
+        showToast(`"${file.name}" could not be processed. Please try a different file.`)
+        setTimeout(() => {
+          if (activeUploadIdRef.current === docId) handleRemoveAttachment()
+        }, 3000)
+      }
+    } catch (e) {
+      // AbortError means the user removed the attachment — no UI update needed
+      if ((e as Error).name !== 'AbortError') {
+        setFileUploadState('error')
+        showToast(`"${file.name}" could not be processed. Please try again.`)
+        setTimeout(() => {
+          if (activeUploadIdRef.current === docId) handleRemoveAttachment()
+        }, 3000)
+      }
+    }
   }
 
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'instant' })
-    }
-  }, [messages, isLoading])
-
-  // Effective document context: session upload > prop passed in > none (searches all)
+  // Effective document context: session upload (done) > URL param > none (global search)
   const effectiveDocumentId = sessionDocumentId ?? activeDocumentId
   const effectiveDocumentName = sessionDocumentName ?? activeDocumentName ?? null
 
   async function handleSend(contentOverride?: string) {
     const content = (contentOverride ?? inputValue).trim()
     if (!content || isLoading || limitReached) return
+    // Block send while attachment is still uploading / processing
+    if (fileUploadState === 'uploading' || fileUploadState === 'processing') return
 
-    const fileToUpload = attachedFile
+    let documentId = effectiveDocumentId
+
+    // If a freshly-uploaded file is ready, use it and promote it to session context
+    if (attachedFile && fileUploadState === 'done' && uploadedDocumentId) {
+      documentId = uploadedDocumentId
+      setSessionDocumentId(uploadedDocumentId)
+      setSessionDocumentName(attachedFile.name)
+      // Clear the chip — the context badge takes over from here
+      handleRemoveAttachment()
+    }
 
     const userMessage: Message = {
       id: generateId(),
@@ -84,22 +170,11 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
 
     setMessages((prev) => [...prev, userMessage])
     setInputValue('')
-    setAttachedFile(null)
     setIsLoading(true)
     setQuestionCount((c) => c + 1)
 
     try {
-      let documentId = effectiveDocumentId
-
-      if (fileToUpload) {
-        const uploaded = await uploadDocument(fileToUpload)
-        documentId = uploaded.document_id
-        setSessionDocumentId(uploaded.document_id)
-        setSessionDocumentName(fileToUpload.name)
-      }
-
       const { answer, sources } = await queryDocuments(content, documentId)
-
       setMessages((prev) => [
         ...prev,
         {
@@ -145,6 +220,13 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
         )}
       </div>
 
+      {/* Toast notification */}
+      {toast && (
+        <div className="fixed bottom-28 left-1/2 -translate-x-1/2 bg-[#0F172A] text-white text-xs px-4 py-2 rounded-lg shadow-lg z-50 pointer-events-none whitespace-nowrap">
+          {toast}
+        </div>
+      )}
+
       <div className="flex-shrink-0 pb-5 pt-3 px-0">
         {limitReached ? (
           <div className="w-full max-w-2xl mx-auto px-4">
@@ -169,8 +251,9 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
             onChange={setInputValue}
             onSubmit={handleSend}
             attachedFile={attachedFile}
+            fileUploadState={fileUploadState}
             onAttach={handleAttach}
-            onRemoveAttachment={() => setAttachedFile(null)}
+            onRemoveAttachment={handleRemoveAttachment}
             isLoading={isLoading}
             activeDocumentName={effectiveDocumentName}
             onClearActiveDocument={
