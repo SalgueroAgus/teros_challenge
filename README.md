@@ -306,16 +306,21 @@ curl -X POST https://tzywgdhhkg.execute-api.us-east-1.amazonaws.com/query \
 ```
                    ┌──────────────┐
   upload file ───► │    Parser    │  pypdf · csv stdlib · pytesseract
-                   └──────┬───────┘
-                          │ raw text
-                          ▼
-                   ┌──────────────┐
-                   │   Chunker    │  tiktoken cl100k_base
-                   │  500 tokens  │  50-token overlap
-                   │  per chunk   │
-                   └──────┬───────┘
-                          │ list[Chunk]
-                          ▼
+w                   └──────┬───────┘   (null bytes stripped for all types)
+                          │
+                  ┌───────┴────────┐
+               CSV?              other
+                  │                │
+                  ▼                ▼
+         ┌──────────────┐  ┌──────────────┐
+         │  chunk_csv   │  │   Chunker    │  tiktoken cl100k_base
+         │  row-aware   │  │  500 tokens  │  50-token overlap
+         │  25 rows/    │  │  per chunk   │
+         │  chunk       │  └──────┬───────┘
+         └──────┬───────┘         │
+                └────────┬────────┘
+                         │ list[Chunk]
+                         ▼
                    ┌──────────────┐
                    │   Embedder   │  text-embedding-3-small
                    │  batch=100   │  1536 dimensions
@@ -333,9 +338,24 @@ curl -X POST https://tzywgdhhkg.execute-api.us-east-1.amazonaws.com/query \
 
 ### Chunking strategy
 
+CSVs and unstructured documents (PDFs, images) use different strategies because their data shapes are fundamentally different.
+
+**PDFs and images — token-based sliding window**
 - **Tokenizer:** `cl100k_base` (same encoding used by GPT-4 / text-embedding-3-small)
-- **Chunk size:** 500 tokens — large enough for a full transaction block or paragraph, small enough to stay precise
+- **Chunk size:** 500 tokens — large enough for a full paragraph, small enough to stay precise
 - **Overlap:** 50 tokens — prevents answers from being cut at chunk boundaries
+
+**CSVs — row-aware batching (`chunk_csv`)**
+- Bypasses the token-based chunker entirely
+- Uses `csv.DictReader` to detect column names automatically
+- Serializes each row as `Column: value` key-value pairs so the embedding model always has column context — a chunk never contains a bare `-54.32` without knowing it's an `Amount`
+- Groups **25 rows per chunk** — no row is ever split across chunk boundaries, no overlap needed since rows are independent
+- Example chunk content:
+  ```
+  Date: 2024-03-04, Amount: -54.32, Description: WHOLE FOODS MKT, Category: Groceries
+  Date: 2024-03-07, Amount: -38.90, Description: TRADER JOES, Category: Groceries
+  ...
+  ```
 
 ### Retrieval
 
@@ -535,3 +555,10 @@ git worktree list
 |---|---|---|
 | Inter font falls back to system font | `next/font/google` sets `--font-inter` but `globals.css` maps `--font-sans` — variable name mismatch | Low — cosmetic only |
 | Image OCR unavailable on Lambda | Tesseract requires a system binary not present in the Lambda runtime; returns a clear error message instead of silently failing | Low — PDF and CSV fully supported |
+
+### Fixed
+
+| Fix | What changed |
+|---|---|
+| PDF null bytes crashing Supabase insert | `pypdf` extracts embedded null bytes (`\x00`) from some PDFs; PostgreSQL rejects them with error code `22P05`. `parser.py` now strips null bytes from all parsed text before it reaches the database. |
+| CSV chunking losing column context | CSVs were serialized to flat text and split by token count, causing rows to be cut mid-line and chunks to contain values with no column labels. Replaced with `chunk_csv()` — a row-aware chunker that serializes each row as `Column: value` pairs and groups 25 rows per chunk. |
