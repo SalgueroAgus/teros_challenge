@@ -160,3 +160,20 @@ def test_delete_document_not_found_returns_404(api_client, mock_supabase):
     )
     response = api_client.delete("/documents/nonexistent-id")
     assert response.status_code == 404
+
+
+def test_query_too_long_returns_422(api_client, mock_supabase):
+    response = api_client.post("/query", json={"question": "x" * 501})
+    assert response.status_code == 422
+
+
+def test_api_key_enforced_when_env_set(api_client, mock_supabase, monkeypatch):
+    monkeypatch.setenv("API_KEY", "secret-key")
+    response = api_client.get("/documents")
+    assert response.status_code == 401
+
+
+def test_api_key_accepted_with_correct_header(api_client, mock_supabase, monkeypatch):
+    monkeypatch.setenv("API_KEY", "secret-key")
+    response = api_client.get("/documents", headers={"X-API-Key": "secret-key"})
+    assert response.status_code == 200
