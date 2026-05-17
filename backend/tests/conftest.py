@@ -16,9 +16,10 @@ def mock_supabase():
     table.update.return_value = table
     table.select.return_value = table
     table.order.return_value = table
+    table.range.return_value = table
     table.delete.return_value = table
     table.eq.return_value = table
-    table.execute.return_value = MagicMock(data=[])
+    table.execute.return_value = MagicMock(data=[], count=0)
     # rpc for match_chunks
     client.rpc.return_value = MagicMock(execute=MagicMock(return_value=MagicMock(data=[])))
     return client
