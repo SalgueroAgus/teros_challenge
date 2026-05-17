@@ -35,5 +35,5 @@ jobs:
 
       - name: Build
         env:
-          NEXT_PUBLIC_API_URL: https://tzywgdhhkg.execute-api.us-east-1.amazonaws.com
+          NEXT_PUBLIC_API_URL: ${{ vars.API_GATEWAY_URL }}
         run: pnpm --filter @workspace/next-app build

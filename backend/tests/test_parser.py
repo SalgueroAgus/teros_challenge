@@ -33,7 +33,7 @@ def test_unsupported_extension_raises():
         parse("document.docx", b"some content")
 
 
-def test_image_calls_openai_vision(monkeypatch):
+def test_image_calls_openai_vision():
     import unittest.mock as mock
     fake_response = mock.MagicMock()
     fake_response.choices[0].message.content = "Total: $1,234.56"
@@ -41,9 +41,7 @@ def test_image_calls_openai_vision(monkeypatch):
     fake_client = mock.MagicMock()
     fake_client.chat.completions.create.return_value = fake_response
 
-    monkeypatch.setattr("app.pipeline.parser.get_openai", lambda: fake_client)
-
-    result = parse("scan.png", b"fake image bytes")
+    result = parse("scan.png", b"fake image bytes", openai=fake_client)
 
     assert result == "Total: $1,234.56"
     fake_client.chat.completions.create.assert_called_once()

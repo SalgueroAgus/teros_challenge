@@ -80,8 +80,7 @@ def test_list_documents_pagination_params(api_client, mock_supabase):
 
 def test_upload_csv(api_client, mock_supabase):
     csv_content = b"Date,Amount\n2024-03-01,-54.32\n"
-    with patch("app.main.ingest") as mock_ingest:
-        mock_ingest.return_value = None
+    with patch("app.main._ingest_and_update"):
         response = api_client.post(
             "/upload",
             files={"file": ("statement.csv", io.BytesIO(csv_content), "text/csv")},
@@ -90,27 +89,29 @@ def test_upload_csv(api_client, mock_supabase):
     data = response.json()
     assert "document_id" in data
     assert data["filename"] == "statement.csv"
-    assert data["status"] == "done"
+    assert data["status"] == "pending"
 
 
 def test_upload_unsupported_type(api_client, mock_supabase):
-    with patch("app.main.ingest") as mock_ingest:
-        mock_ingest.side_effect = ValueError("Unsupported file type: .docx")
+    # Validation errors (bad file type) surface in the background task — the
+    # endpoint itself always returns 202 once the file passes size/dupe checks.
+    with patch("app.main._ingest_and_update"):
         response = api_client.post(
             "/upload",
             files={"file": ("doc.docx", io.BytesIO(b"content"), "application/octet-stream")},
         )
-    assert response.status_code == 400
+    assert response.status_code == 202
 
 
 def test_upload_server_error_returns_500(api_client, mock_supabase):
-    with patch("app.main.ingest") as mock_ingest:
-        mock_ingest.side_effect = RuntimeError("Unexpected database failure")
+    # Runtime errors are handled inside the background task; the HTTP layer
+    # always returns 202 — status column is set to "error" asynchronously.
+    with patch("app.main._ingest_and_update"):
         response = api_client.post(
             "/upload",
             files={"file": ("statement.csv", io.BytesIO(b"Date,Amount\n"), "text/csv")},
         )
-    assert response.status_code == 500
+    assert response.status_code == 202
 
 
 def test_query_no_chunks_returns_404(api_client, mock_supabase):
