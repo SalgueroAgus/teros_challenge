@@ -45,3 +45,9 @@ def test_filename_case_insensitive():
     content = _make_csv([["a", "b"]])
     result = parse("STATEMENT.CSV", content)
     assert "a" in result
+
+
+def test_null_bytes_stripped_from_csv():
+    content = _make_csv([["col\x00A", "col\x00B"], ["val\x001", "val\x002"]])
+    result = parse("data.csv", content)
+    assert "\x00" not in result
