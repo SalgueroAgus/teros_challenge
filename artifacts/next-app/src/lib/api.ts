@@ -71,17 +71,12 @@ export interface PaginatedDocuments {
   totalPages: number
 }
 
-const EMPTY_PAGE = (page: number): PaginatedDocuments => ({
-  items: [],
-  total: 0,
-  page,
-  pageSize: 10,
-  totalPages: 1,
-})
-
 export async function fetchDocuments(page = 1): Promise<PaginatedDocuments> {
   const res = await fetch(`${BASE}/documents?page=${page}&page_size=10`)
-  if (!res.ok) return EMPTY_PAGE(page)
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail ?? `Failed to fetch documents (${res.status})`)
+  }
   const data = await res.json()
   return {
     items: Array.isArray(data.items) ? data.items.map(mapDocument) : [],

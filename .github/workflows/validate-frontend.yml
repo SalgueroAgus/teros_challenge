@@ -22,10 +22,10 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Type check
         run: pnpm --filter @workspace/next-app exec tsc --noEmit
@@ -35,5 +35,5 @@ jobs:
 
       - name: Build
         env:
-          NEXT_PUBLIC_API_URL: ${{ vars.API_GATEWAY_URL }}
+          API_URL: ${{ vars.API_GATEWAY_URL }}
         run: pnpm --filter @workspace/next-app build
