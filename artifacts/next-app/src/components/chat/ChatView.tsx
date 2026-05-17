@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import type { Message } from '@/types'
 import { uploadDocument, queryDocuments } from '@/lib/api'
+import { useChatSession } from '@/lib/chat-context'
 import { MessageBubble, LoadingBubble } from './MessageBubble'
 import { ChatInput } from './ChatInput'
 import { SuggestionCards } from './SuggestionCards'
@@ -12,28 +13,35 @@ interface ChatViewProps {
   activeDocumentName?: string
 }
 
+const QUESTION_LIMIT = 25
+const MAX_FILE_BYTES = 10 * 1024 * 1024
+
 function generateId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
 
 export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps) {
-  const [messages, setMessages] = useState<Message[]>([])
+  // Persistent across tab navigation — lives in context above the route
+  const {
+    messages,
+    setMessages,
+    questionCount,
+    setQuestionCount,
+    sessionDocumentId,
+    setSessionDocumentId,
+    sessionDocumentName,
+    setSessionDocumentName,
+  } = useChatSession()
+
+  // Transient — fine to lose on tab switch
   const [isLoading, setIsLoading] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const [attachedFile, setAttachedFile] = useState<File | null>(null)
-  const [questionCount, setQuestionCount] = useState(0)
 
-  const QUESTION_LIMIT = 10
   const limitReached = questionCount >= QUESTION_LIMIT
-
-  // Document pinned for the whole chat session after an upload
-  const [sessionDocumentId, setSessionDocumentId] = useState<string | null>(null)
-  const [sessionDocumentName, setSessionDocumentName] = useState<string | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-
-  const MAX_FILE_BYTES = 10 * 1024 * 1024
 
   function handleAttach(file: File) {
     if (file.size > MAX_FILE_BYTES) {
@@ -86,7 +94,6 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
       if (fileToUpload) {
         const uploaded = await uploadDocument(fileToUpload)
         documentId = uploaded.document_id
-        // Pin this document for the rest of the session
         setSessionDocumentId(uploaded.document_id)
         setSessionDocumentName(fileToUpload.name)
       }
@@ -141,11 +148,19 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
       <div className="flex-shrink-0 pb-5 pt-3 px-0">
         {limitReached ? (
           <div className="w-full max-w-2xl mx-auto px-4">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-3 text-center">
-              <p className="text-sm text-[#64748B]">
-                Session limit of {QUESTION_LIMIT} questions reached.
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-4 text-center space-y-3">
+              <p className="text-sm text-[#0F172A] font-medium">
+                You&apos;ve reached the {QUESTION_LIMIT}-question session limit.
               </p>
-              <p className="text-xs text-[#94A3B8] mt-0.5">Refresh the page to start a new session.</p>
+              <p className="text-xs text-[#64748B]">
+                Start a new session to continue — your documents will remain available.
+              </p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-[#4F6CF7] text-white text-sm font-medium rounded-lg hover:bg-[#3B5BDB] focus:outline-none focus:ring-2 focus:ring-[#4F6CF7] focus:ring-offset-1"
+              >
+                Start new session
+              </button>
             </div>
           </div>
         ) : (
@@ -159,7 +174,9 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
             isLoading={isLoading}
             activeDocumentName={effectiveDocumentName}
             onClearActiveDocument={
-              sessionDocumentId ? () => { setSessionDocumentId(null); setSessionDocumentName(null) } : undefined
+              sessionDocumentId
+                ? () => { setSessionDocumentId(null); setSessionDocumentName(null) }
+                : undefined
             }
           />
         )}
