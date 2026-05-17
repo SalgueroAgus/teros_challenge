@@ -290,14 +290,20 @@ curl https://tzywgdhhkg.execute-api.us-east-1.amazonaws.com/documents \
 ```
 
 ```json
-[
-  {
-    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "filename": "bank_statement.pdf",
-    "status": "done",
-    "uploaded_at": "2026-05-16T18:43:35.000Z"
-  }
-]
+{
+  "items": [
+    {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "filename": "bank_statement.pdf",
+      "status": "done",
+      "uploaded_at": "2026-05-16T18:43:35.000Z"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 10,
+  "total_pages": 1
+}
 ```
 
 Possible `status` values: `pending` · `done` · `error`
@@ -492,6 +498,9 @@ The CLI records applied migrations in a `supabase_migrations` table — it never
 | `20260516184336_create_documents.sql` | `documents` table with status enum check |
 | `20260516184337_create_chunks_and_match_fn.sql` | `document_chunks` table + IVFFlat index + original `match_chunks` function |
 | `20260517005821_hybrid_match_chunks.sql` | Replace `match_chunks` with hybrid dense + sparse RRF version; adds `query_text` parameter |
+| `20260517161000_update_document_status_constraint.sql` | Drop `processing` status; migrate stuck rows to `error`; new constraint: `pending \| done \| error` |
+| `20260517200000_gin_index_chunks_content.sql` | GIN index on `to_tsvector(content)` for fast full-text search in the sparse retrieval path |
+| `20260517210000_schema_constraints.sql` | Enforce `embedding NOT NULL`; add `UNIQUE` constraint on `documents.filename` |
 
 > **Note:** The `vector` type lives in the `extensions` schema in Supabase. All references use `extensions.vector(1536)` and the `match_chunks` function sets `search_path = extensions, public` so the `<=>` operator is resolved correctly.
 
@@ -549,7 +558,7 @@ It:
 Manual trigger is also available via `workflow_dispatch` in the GitHub Actions UI.
 
 ```
-Lambda function:   finsight-api
+Lambda function:   finsight-backend
 Runtime:           Python 3.12
 Handler:           app.main.handler   (Mangum wraps FastAPI)
 API Gateway:       HTTP API — $default route → Lambda
@@ -589,7 +598,7 @@ teros_challenge/
 │   └── next-app/                    ← Next.js 15 frontend
 │       ├── src/
 │       │   ├── app/                 ← App Router pages
-│       │   │   ├── page.tsx         ← Dashboard (/)
+│       │   │   ├── page.tsx         ← Redirects / → /overview
 │       │   │   ├── chat/page.tsx    ← Chat view (/chat)
 │       │   │   ├── documents/       ← Documents page
 │       │   │   └── api/             ← Route Handlers (server-side proxy)
@@ -622,7 +631,7 @@ teros_challenge/
 │   │       └── ingest.py            ← Orchestrates parse → chunk → embed → store
 │   ├── tests/
 │   │   ├── conftest.py              ← Shared fixtures (mock Supabase + OpenAI)
-│   │   ├── test_api.py              ← API endpoint tests (37 tests)
+│   │   ├── test_api.py              ← API endpoint tests (20 tests)
 │   │   ├── test_chunker.py          ← Chunker unit tests
 │   │   └── test_parser.py           ← Parser unit tests
 │   ├── supabase/
@@ -662,3 +671,18 @@ A custom Claude Code skill is configured at `.claude/skills/cicd-master/SKILL.md
 - Every PR gets the `ci/cd` label and a standard body template
 
 ---
+
+## Development Notes
+
+This project was built with the assistance of **[Claude Code](https://claude.com/claude-code)** (Anthropic's AI coding assistant).
+
+**How Claude Code was used:**
+
+- Scaffolded and iterated on the frontend components, backend endpoints, and pipeline modules through conversation
+- Several pull requests were authored or co-authored using Claude Code directly — commit messages marked with `Co-Authored-By: Claude` reflect this
+- The `cicd-master` custom Skill (`.claude/skills/cicd-master/`) was built to give Claude Code a specialised persona for managing GitHub Actions in this repo
+- The git worktree workflow was used to run Claude Code in an isolated branch (`ci/frontend-build`) in parallel with main development
+
+**Development workflow:**
+
+Every feature and fix followed the same loop: identify the problem and its constraints, discuss possible approaches with their trade-offs, pick one and implement it, then review the code together for correctness and edge cases, and finally run or write tests to validate the behaviour.
