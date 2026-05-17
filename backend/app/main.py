@@ -24,8 +24,8 @@ _allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
-    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "X-API-Key"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Lambda entry point
