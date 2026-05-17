@@ -10,6 +10,7 @@ from postgrest.exceptions import APIError as PostgRESTError
 from pydantic import BaseModel, Field
 
 from app.dependencies import get_openai, get_supabase, verify_api_key
+from app.pipeline.embedder import EMBEDDING_MODEL
 from app.pipeline.ingest import ingest
 from supabase import Client
 
@@ -29,7 +30,6 @@ app.add_middleware(
 # Lambda entry point
 handler = Mangum(app)
 
-EMBEDDING_MODEL = "text-embedding-3-small"
 CHAT_MODEL = "gpt-4o-mini"
 MATCH_THRESHOLD = 0.3
 MATCH_COUNT = 5

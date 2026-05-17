@@ -107,3 +107,30 @@ export async function deleteDocument(id: string): Promise<void> {
     throw new Error(err.detail ?? 'Delete failed')
   }
 }
+
+// Polls GET /documents until the given document reaches 'done' or 'error'.
+// Newly uploaded docs are always on page 1 (sorted by uploaded_at desc).
+// Pass an AbortSignal to stop polling when the user removes the attachment.
+export async function pollDocumentReady(
+  documentId: string,
+  signal?: AbortSignal,
+): Promise<'done' | 'error'> {
+  const MAX_ATTEMPTS = 30  // 30 × 2 s = 60 s max wait
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(resolve, 2000)
+      signal?.addEventListener('abort', () => { clearTimeout(timer); reject(new DOMException('Aborted', 'AbortError')) }, { once: true })
+    })
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+    try {
+      const data = await fetchDocuments(1)
+      const doc = data.items.find(d => d.id === documentId)
+      if (doc?.status === 'done') return 'done'
+      if (doc?.status === 'error') return 'error'
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') throw e
+      // transient network error — keep polling
+    }
+  }
+  return 'error'
+}

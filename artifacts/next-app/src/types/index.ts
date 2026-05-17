@@ -1,5 +1,7 @@
 export type DocumentStatus = 'pending' | 'processing' | 'done' | 'error'
 
+export type FileUploadState = 'idle' | 'uploading' | 'processing' | 'done' | 'error'
+
 export interface Document {
   id: string
   filename: string
