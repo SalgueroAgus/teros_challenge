@@ -104,7 +104,6 @@ export function DocumentsTable({
   total = 0,
   onPageChange,
 }: DocumentsTableProps) {
-  const showPagination = onPageChange !== undefined && totalPages > 1
   const rangeStart = total === 0 ? 0 : (currentPage - 1) * 10 + 1
   const rangeEnd = rangeStart + documents.length - 1
   return (
