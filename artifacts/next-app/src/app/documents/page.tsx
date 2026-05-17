@@ -1,10 +1,11 @@
 'use client'
 
 import { DocumentsTable } from '@/components/dashboard/DocumentsTable'
-import { useDocuments } from '@/hooks/useDocuments'
+import { useDeleteDocument, useDocuments } from '@/hooks/useDocuments'
 
 export default function DocumentsPage() {
   const { data: documents, isLoading } = useDocuments()
+  const { mutate: deleteDocument, isPending: isDeleting } = useDeleteDocument()
 
   return (
     <div className="h-full overflow-y-auto">
@@ -15,7 +16,12 @@ export default function DocumentsPage() {
             Manage your uploaded financial documents
           </p>
         </div>
-        <DocumentsTable documents={documents ?? []} isLoading={isLoading} />
+        <DocumentsTable
+          documents={documents ?? []}
+          isLoading={isLoading}
+          onDelete={deleteDocument}
+          isDeleting={isDeleting}
+        />
       </div>
     </div>
   )

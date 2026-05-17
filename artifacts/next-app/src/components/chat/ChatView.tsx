@@ -29,6 +29,24 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
+  const MAX_FILE_BYTES = 10 * 1024 * 1024
+
+  function handleAttach(file: File) {
+    if (file.size > MAX_FILE_BYTES) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: generateId(),
+          role: 'assistant',
+          content: `"${file.name}" is too large. Files must be under 10 MB.`,
+          timestamp: new Date(),
+        },
+      ])
+      return
+    }
+    setAttachedFile(file)
+  }
+
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'instant' })
@@ -121,7 +139,7 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
           onChange={setInputValue}
           onSubmit={handleSend}
           attachedFile={attachedFile}
-          onAttach={setAttachedFile}
+          onAttach={handleAttach}
           onRemoveAttachment={() => setAttachedFile(null)}
           isLoading={isLoading}
           activeDocumentName={effectiveDocumentName}

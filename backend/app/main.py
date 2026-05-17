@@ -12,6 +12,8 @@ from supabase import Client
 
 app = FastAPI(title="FinSight API", version="0.1.0")
 
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # locked down to Replit origin after deploy
@@ -70,6 +72,17 @@ async def upload(
     supabase: Client = Depends(get_supabase),
 ):
     content = await file.read()
+
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File exceeds the 10 MB limit.")
+
+    existing = supabase.table("documents").select("id").eq("filename", file.filename).execute()
+    if existing.data:
+        raise HTTPException(
+            status_code=409,
+            detail=f"A document named '{file.filename}' already exists.",
+        )
+
     document_id = str(uuid.uuid4())
 
     supabase.table("documents").insert(
@@ -86,6 +99,16 @@ async def upload(
         raise HTTPException(status_code=500, detail=str(exc))
 
     return {"document_id": document_id, "filename": file.filename, "status": "done"}
+
+
+@app.delete("/documents/{document_id}", status_code=200)
+def delete_document(document_id: str, supabase: Client = Depends(get_supabase)):
+    result = supabase.table("documents").select("id").eq("id", document_id).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    supabase.table("document_chunks").delete().eq("document_id", document_id).execute()
+    supabase.table("documents").delete().eq("id", document_id).execute()
+    return {"deleted": document_id}
 
 
 @app.get("/documents")
