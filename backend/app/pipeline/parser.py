@@ -1,12 +1,28 @@
 """Parse uploaded files into plain text."""
 
+import base64
 import csv
 import io
 from pathlib import Path
 
 from pypdf import PdfReader
 
-_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".tiff"}
+from app.dependencies import get_openai
+
+# GPT-4o Vision supported formats only (TIFF not supported by the API)
+_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
+
+_IMAGE_MIME = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+}
+
+_VISION_PROMPT = (
+    "Extract all text from this financial document exactly as it appears. "
+    "Preserve layout and numbers precisely. Return only the raw text, no commentary."
+)
 
 
 def parse(filename: str, content: bytes) -> str:
@@ -16,7 +32,7 @@ def parse(filename: str, content: bytes) -> str:
     elif ext == ".csv":
         text = _parse_csv(content)
     elif ext in _IMAGE_EXTS:
-        text = _parse_image(content)
+        text = _parse_image(content, ext)
     else:
         raise ValueError(f"Unsupported file type: {ext}")
     # PostgreSQL rejects null bytes in text columns; strip them from all sources
@@ -36,14 +52,18 @@ def _parse_csv(content: bytes) -> str:
     return "\n".join(rows).strip()
 
 
-def _parse_image(content: bytes) -> str:
-    try:
-        import pytesseract
-        from PIL import Image
-        image = Image.open(io.BytesIO(content))
-        return pytesseract.image_to_string(image).strip()
-    except Exception:
-        raise ValueError(
-            "Image parsing requires Tesseract OCR, which is not available in this environment. "
-            "Upload a PDF or CSV instead."
-        )
+def _parse_image(content: bytes, ext: str) -> str:
+    mime = _IMAGE_MIME[ext]
+    b64 = base64.standard_b64encode(content).decode()
+    client = get_openai()
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}},
+                {"type": "text", "text": _VISION_PROMPT},
+            ],
+        }],
+    )
+    return (response.choices[0].message.content or "").strip()

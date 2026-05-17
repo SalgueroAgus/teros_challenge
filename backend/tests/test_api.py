@@ -53,6 +53,16 @@ def test_upload_unsupported_type(api_client, mock_supabase):
             "/upload",
             files={"file": ("doc.docx", io.BytesIO(b"content"), "application/octet-stream")},
         )
+    assert response.status_code == 400
+
+
+def test_upload_server_error_returns_500(api_client, mock_supabase):
+    with patch("app.main.ingest") as mock_ingest:
+        mock_ingest.side_effect = RuntimeError("Unexpected database failure")
+        response = api_client.post(
+            "/upload",
+            files={"file": ("statement.csv", io.BytesIO(b"Date,Amount\n"), "text/csv")},
+        )
     assert response.status_code == 500
 
 

@@ -72,6 +72,9 @@ async def upload(
 
     try:
         ingest(file.filename, content, document_id)
+    except ValueError as exc:
+        supabase.table("documents").update({"status": "error"}).eq("id", document_id).execute()
+        raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         supabase.table("documents").update({"status": "error"}).eq("id", document_id).execute()
         raise HTTPException(status_code=500, detail=str(exc))

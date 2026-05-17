@@ -33,12 +33,27 @@ def test_unsupported_extension_raises():
         parse("document.docx", b"some content")
 
 
-def test_image_without_tesseract_raises_value_error():
-    # On CI, Tesseract is not installed — parser should raise ValueError with clear message
+def test_image_calls_openai_vision(monkeypatch):
     import unittest.mock as mock
-    with mock.patch.dict("sys.modules", {"pytesseract": None, "PIL": None}):
-        with pytest.raises((ValueError, Exception)):
-            parse("scan.png", b"fake image bytes")
+    fake_response = mock.MagicMock()
+    fake_response.choices[0].message.content = "Total: $1,234.56"
+
+    fake_client = mock.MagicMock()
+    fake_client.chat.completions.create.return_value = fake_response
+
+    monkeypatch.setattr("app.pipeline.parser.get_openai", lambda: fake_client)
+
+    result = parse("scan.png", b"fake image bytes")
+
+    assert result == "Total: $1,234.56"
+    fake_client.chat.completions.create.assert_called_once()
+    call_kwargs = fake_client.chat.completions.create.call_args.kwargs
+    assert call_kwargs["model"] == "gpt-4o-mini"
+
+
+def test_tiff_unsupported():
+    with pytest.raises(ValueError, match="Unsupported file type"):
+        parse("scan.tiff", b"fake image bytes")
 
 
 def test_filename_case_insensitive():

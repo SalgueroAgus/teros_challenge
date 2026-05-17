@@ -554,11 +554,3 @@ git worktree list
 | Issue | Root cause | Priority |
 |---|---|---|
 | Inter font falls back to system font | `next/font/google` sets `--font-inter` but `globals.css` maps `--font-sans` — variable name mismatch | Low — cosmetic only |
-| Image OCR unavailable on Lambda | Tesseract requires a system binary not present in the Lambda runtime; returns a clear error message instead of silently failing | Low — PDF and CSV fully supported |
-
-### Fixed
-
-| Fix | What changed |
-|---|---|
-| PDF null bytes crashing Supabase insert | `pypdf` extracts embedded null bytes (`\x00`) from some PDFs; PostgreSQL rejects them with error code `22P05`. `parser.py` now strips null bytes from all parsed text before it reaches the database. |
-| CSV chunking losing column context | CSVs were serialized to flat text and split by token count, causing rows to be cut mid-line and chunks to contain values with no column labels. Replaced with `chunk_csv()` — a row-aware chunker that serializes each row as `Column: value` pairs and groups 25 rows per chunk. |
