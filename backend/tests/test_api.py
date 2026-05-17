@@ -13,22 +13,56 @@ def test_health(api_client):
 
 
 def test_list_documents_empty(api_client, mock_supabase):
-    docs_execute = mock_supabase.table.return_value.select.return_value.order.return_value.execute
-    docs_execute.return_value = MagicMock(data=[])
+    paginated_execute = mock_supabase.table.return_value.select.return_value.order.return_value.range.return_value.execute
+    paginated_execute.return_value = MagicMock(data=[], count=0)
     response = api_client.get("/documents")
     assert response.status_code == 200
-    assert response.json() == []
+    data = response.json()
+    assert data["items"] == []
+    assert data["total"] == 0
+    assert data["total_pages"] == 1
 
 
 def test_list_documents_returns_data(api_client, mock_supabase):
-    docs_execute = mock_supabase.table.return_value.select.return_value.order.return_value.execute
-    docs_execute.return_value = MagicMock(
-        data=[{"id": "abc", "filename": "test.pdf", "status": "done", "uploaded_at": "2026-01-01"}]
+    paginated_execute = mock_supabase.table.return_value.select.return_value.order.return_value.range.return_value.execute
+    paginated_execute.return_value = MagicMock(
+        data=[{"id": "abc", "filename": "test.pdf", "status": "done", "uploaded_at": "2026-01-01"}],
+        count=1,
     )
     response = api_client.get("/documents")
     assert response.status_code == 200
-    assert len(response.json()) == 1
-    assert response.json()[0]["filename"] == "test.pdf"
+    data = response.json()
+    assert len(data["items"]) == 1
+    assert data["items"][0]["filename"] == "test.pdf"
+    assert data["total"] == 1
+    assert data["total_pages"] == 1
+
+
+def test_list_documents_out_of_range_returns_empty(api_client, mock_supabase):
+    from postgrest.exceptions import APIError as PostgRESTError
+    mock_supabase.table.return_value.select.return_value.order.return_value.range.return_value.execute.side_effect = (
+        PostgRESTError({"message": "Requested range not satisfiable", "code": "PGRST103", "hint": None, "details": ""})
+    )
+    response = api_client.get("/documents?page=999")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["items"] == []
+    assert data["total"] == 0
+
+
+def test_list_documents_pagination_params(api_client, mock_supabase):
+    paginated_execute = mock_supabase.table.return_value.select.return_value.order.return_value.range.return_value.execute
+    paginated_execute.return_value = MagicMock(data=[], count=25)
+    response = api_client.get("/documents?page=2&page_size=10")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["page"] == 2
+    assert data["page_size"] == 10
+    assert data["total"] == 25
+    assert data["total_pages"] == 3
+    # Verify range was called with correct offsets
+    range_call = mock_supabase.table.return_value.select.return_value.order.return_value.range
+    range_call.assert_called_with(10, 19)
 
 
 def test_upload_csv(api_client, mock_supabase):

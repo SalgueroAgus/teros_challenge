@@ -1,11 +1,14 @@
 import logging
+import math
 import uuid
 
-from fastapi import Depends, FastAPI, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 from openai import OpenAI
 from pydantic import BaseModel, Field
+
+from postgrest.exceptions import APIError as PostgRESTError
 
 from app.dependencies import get_openai, get_supabase, verify_api_key
 from app.pipeline.ingest import ingest
@@ -60,6 +63,14 @@ class Source(BaseModel):
 class QueryResponse(BaseModel):
     answer: str
     sources: list[Source]
+
+
+class PaginatedDocumentsResponse(BaseModel):
+    items: list[dict]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -118,10 +129,38 @@ def delete_document(document_id: str, supabase: Client = Depends(get_supabase)):
     return {"deleted": document_id}
 
 
-@app.get("/documents", dependencies=[Depends(verify_api_key)])
-def list_documents(supabase: Client = Depends(get_supabase)):
-    result = supabase.table("documents").select("*").order("uploaded_at", desc=True).execute()
-    return result.data
+@app.get("/documents", response_model=PaginatedDocumentsResponse, dependencies=[Depends(verify_api_key)])
+def list_documents(
+    supabase: Client = Depends(get_supabase),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=100),
+):
+    start = (page - 1) * page_size
+    end = start + page_size - 1
+    try:
+        result = (
+            supabase.table("documents")
+            .select("*", count="exact")
+            .order("uploaded_at", desc=True)
+            .range(start, end)
+            .execute()
+        )
+    except PostgRESTError as exc:
+        if exc.code == "PGRST103":
+            # Requested range is beyond the last row — return empty page
+            return PaginatedDocumentsResponse(
+                items=[], total=0, page=page, page_size=page_size, total_pages=1
+            )
+        raise
+    total = result.count or 0
+    total_pages = max(1, math.ceil(total / page_size))
+    return PaginatedDocumentsResponse(
+        items=result.data,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
 
 
 def _expand_query(question: str, openai: OpenAI) -> str:

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { MessageSquare, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MessageSquare, Trash2 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import type { Document, DocumentStatus } from '@/types'
@@ -11,6 +11,10 @@ interface DocumentsTableProps {
   isLoading: boolean
   onDelete?: (id: string) => void
   isDeleting?: boolean
+  currentPage?: number
+  totalPages?: number
+  total?: number
+  onPageChange?: (page: number) => void
 }
 
 function StatusBadge({ status }: { status: DocumentStatus }) {
@@ -81,7 +85,19 @@ function SkeletonRow() {
   )
 }
 
-export function DocumentsTable({ documents, isLoading, onDelete, isDeleting }: DocumentsTableProps) {
+export function DocumentsTable({
+  documents,
+  isLoading,
+  onDelete,
+  isDeleting,
+  currentPage = 1,
+  totalPages = 1,
+  total = 0,
+  onPageChange,
+}: DocumentsTableProps) {
+  const showPagination = onPageChange !== undefined && totalPages > 1
+  const rangeStart = total === 0 ? 0 : (currentPage - 1) * 10 + 1
+  const rangeEnd = rangeStart + documents.length - 1
   return (
     <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100">
@@ -179,6 +195,37 @@ export function DocumentsTable({ documents, isLoading, onDelete, isDeleting }: D
           </tbody>
         </table>
       </div>
+
+      {showPagination && (
+        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+          <span className="text-xs text-[#94A3B8]">
+            {total === 0
+              ? 'No documents'
+              : `Showing ${rangeStart}–${rangeEnd} of ${total}`}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => onPageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="w-7 h-7 flex items-center justify-center rounded-md text-[#64748B] hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+              aria-label="Previous page"
+            >
+              <ChevronLeft size={15} />
+            </button>
+            <span className="text-xs text-[#64748B] px-2 tabular-nums">
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              onClick={() => onPageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="w-7 h-7 flex items-center justify-center rounded-md text-[#64748B] hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+              aria-label="Next page"
+            >
+              <ChevronRight size={15} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

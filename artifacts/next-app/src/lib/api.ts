@@ -67,12 +67,34 @@ export async function queryDocuments(
   return res.json()
 }
 
-export async function fetchDocuments(): Promise<Document[]> {
-  if (!BASE) return []
-  const res = await fetch(`${BASE}/documents`, { headers: authHeaders() })
-  if (!res.ok) return []
-  const data: RawDocument[] = await res.json()
-  return Array.isArray(data) ? data.map(mapDocument) : []
+export interface PaginatedDocuments {
+  items: Document[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+const EMPTY_PAGE = (page: number): PaginatedDocuments => ({
+  items: [],
+  total: 0,
+  page,
+  pageSize: 10,
+  totalPages: 1,
+})
+
+export async function fetchDocuments(page = 1): Promise<PaginatedDocuments> {
+  if (!BASE) return EMPTY_PAGE(page)
+  const res = await fetch(`${BASE}/documents?page=${page}&page_size=10`, { headers: authHeaders() })
+  if (!res.ok) return EMPTY_PAGE(page)
+  const data = await res.json()
+  return {
+    items: Array.isArray(data.items) ? data.items.map(mapDocument) : [],
+    total: data.total ?? 0,
+    page: data.page ?? page,
+    pageSize: data.page_size ?? 10,
+    totalPages: data.total_pages ?? 1,
+  }
 }
 
 export async function deleteDocument(id: string): Promise<void> {

@@ -1,11 +1,13 @@
 'use client'
 
+import { useState } from 'react'
 import { DocumentsTable } from '@/components/dashboard/DocumentsTable'
 import { DocumentUploadZone } from '@/components/dashboard/DocumentUploadZone'
 import { useDeleteDocument, useDocuments } from '@/hooks/useDocuments'
 
 export default function DocumentsPage() {
-  const { data: documents, isLoading } = useDocuments()
+  const [page, setPage] = useState(1)
+  const { data, isLoading } = useDocuments(page)
   const { mutate: deleteDocument, isPending: isDeleting } = useDeleteDocument()
 
   return (
@@ -19,10 +21,14 @@ export default function DocumentsPage() {
         </div>
         <DocumentUploadZone />
         <DocumentsTable
-          documents={documents ?? []}
+          documents={data?.items ?? []}
           isLoading={isLoading}
           onDelete={deleteDocument}
           isDeleting={isDeleting}
+          currentPage={page}
+          totalPages={data?.totalPages}
+          total={data?.total}
+          onPageChange={setPage}
         />
       </div>
     </div>

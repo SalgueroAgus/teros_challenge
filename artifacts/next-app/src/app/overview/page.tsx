@@ -1,12 +1,14 @@
 'use client'
 
+import { useState } from 'react'
 import { TrendingDown, TrendingUp, Wallet } from 'lucide-react'
 import { SummaryCard } from '@/components/dashboard/SummaryCard'
 import { DocumentsTable } from '@/components/dashboard/DocumentsTable'
 import { useDocuments } from '@/hooks/useDocuments'
 
 export default function OverviewPage() {
-  const { data: documents, isLoading } = useDocuments()
+  const [page, setPage] = useState(1)
+  const { data, isLoading } = useDocuments(page)
 
   return (
     <div className="h-full overflow-y-auto">
@@ -40,8 +42,12 @@ export default function OverviewPage() {
 
         {/* Documents table */}
         <DocumentsTable
-          documents={documents ?? []}
+          documents={data?.items ?? []}
           isLoading={isLoading}
+          currentPage={page}
+          totalPages={data?.totalPages}
+          total={data?.total}
+          onPageChange={setPage}
         />
       </div>
     </div>
