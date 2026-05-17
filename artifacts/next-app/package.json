@@ -23,6 +23,7 @@
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-dropzone": "catalog:",
+    "recharts": "^3.8.1",
     "shadcn": "^4.7.0",
     "tailwind-merge": "catalog:",
     "tw-animate-css": "^1.4.0"
