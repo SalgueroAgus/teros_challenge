@@ -2,7 +2,7 @@ import logging
 import math
 import uuid
 
-from fastapi import Depends, FastAPI, HTTPException, Query, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 from openai import OpenAI
@@ -79,9 +79,24 @@ def health():
     return {"status": "ok", "version": "0.1.0"}
 
 
+def _ingest_and_update(
+    filename: str,
+    content: bytes,
+    document_id: str,
+    supabase: Client,
+    openai: OpenAI,
+) -> None:
+    try:
+        ingest(filename, content, document_id, supabase, openai)
+    except Exception:
+        logger.exception("Ingest failed for document %s", document_id)
+        supabase.table("documents").update({"status": "error"}).eq("id", document_id).execute()
+
+
 @app.post("/upload", status_code=202, dependencies=[Depends(verify_api_key)])
 async def upload(
     file: UploadFile,
+    background_tasks: BackgroundTasks,
     supabase: Client = Depends(get_supabase),
     openai: OpenAI = Depends(get_openai),
 ):
@@ -89,6 +104,9 @@ async def upload(
 
     if len(content) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File exceeds the 10 MB limit.")
+
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename is required.")
 
     existing = supabase.table("documents").select("id").eq("filename", file.filename).execute()
     if existing.data:
@@ -100,23 +118,12 @@ async def upload(
     document_id = str(uuid.uuid4())
 
     supabase.table("documents").insert(
-        {"id": document_id, "filename": file.filename, "status": "processing"}
+        {"id": document_id, "filename": file.filename, "status": "pending"}
     ).execute()
 
-    try:
-        ingest(file.filename, content, document_id, supabase, openai)
-    except ValueError as exc:
-        supabase.table("documents").update({"status": "error"}).eq("id", document_id).execute()
-        raise HTTPException(status_code=400, detail=str(exc))
-    except Exception:
-        logger.exception("Ingest failed for document %s", document_id)
-        supabase.table("documents").update({"status": "error"}).eq("id", document_id).execute()
-        raise HTTPException(
-            status_code=500,
-            detail="An internal error occurred while processing the file.",
-        )
+    background_tasks.add_task(_ingest_and_update, file.filename, content, document_id, supabase, openai)
 
-    return {"document_id": document_id, "filename": file.filename, "status": "done"}
+    return {"document_id": document_id, "filename": file.filename, "status": "pending"}
 
 
 @app.delete("/documents/{document_id}", status_code=200, dependencies=[Depends(verify_api_key)])
