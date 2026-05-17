@@ -37,7 +37,7 @@ export function SummaryCard({
         )}
       </div>
       <div>
-        <span className="text-3xl font-semibold text-[#0F172A]">{value}</span>
+        <span className="text-2xl sm:text-3xl font-semibold text-[#0F172A]">{value}</span>
       </div>
       <p className="text-xs text-[#64748B]">{subtitle}</p>
     </div>

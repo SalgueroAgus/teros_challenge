@@ -228,6 +228,14 @@ export function ChatView({ activeDocumentId, activeDocumentName }: ChatViewProps
       )}
 
       <div className="flex-shrink-0 pb-5 pt-3 px-0">
+        {/* Turns remaining counter */}
+        {!limitReached && (
+          <div className="flex justify-center mb-2">
+            <span className="text-xs text-[#94A3B8] tabular-nums">
+              {QUESTION_LIMIT - questionCount} / {QUESTION_LIMIT} turns remaining
+            </span>
+          </div>
+        )}
         {limitReached ? (
           <div className="w-full max-w-2xl mx-auto px-4">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-4 text-center space-y-3">

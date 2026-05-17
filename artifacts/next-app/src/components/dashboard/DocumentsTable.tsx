@@ -110,7 +110,58 @@ export function DocumentsTable({
           Your uploaded financial documents
         </p>
       </div>
-      <div className="overflow-x-auto">
+      {/* Mobile card layout */}
+      <div className="md:hidden divide-y divide-gray-50">
+        {isLoading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="px-4 py-3 space-y-2">
+              <Skeleton className="h-4 w-40 rounded" />
+              <Skeleton className="h-3 w-24 rounded" />
+            </div>
+          ))
+        ) : documents.length === 0 ? (
+          <div className="px-4 py-8 text-center space-y-1">
+            <p className="text-sm text-[#64748B]">No documents uploaded yet</p>
+            <p className="text-xs text-[#94A3B8]">Upload a document in Chat to get started</p>
+          </div>
+        ) : (
+          documents.map((doc) => (
+            <div key={doc.id} className="px-4 py-3 flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-[#0F172A] truncate">{doc.filename}</p>
+                <p className="text-xs text-[#94A3B8] mt-0.5 uppercase font-mono">
+                  {doc.fileType} · {formatDate(doc.uploadedAt)}
+                </p>
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <StatusBadge status={doc.status} />
+                {doc.status === 'done' && (
+                  <Link
+                    href={`/chat?docId=${doc.id}&docName=${encodeURIComponent(doc.filename)}`}
+                    className="w-7 h-7 flex items-center justify-center rounded-md text-[#4F6CF7] hover:bg-[#EEF2FF]"
+                  >
+                    <MessageSquare size={14} />
+                  </Link>
+                )}
+                {onDelete && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Delete "${doc.filename}"?`)) onDelete(doc.id)
+                    }}
+                    disabled={isDeleting}
+                    className="w-7 h-7 flex items-center justify-center rounded-md text-[#94A3B8] hover:text-red-500 hover:bg-red-50 disabled:opacity-40"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop table layout */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50/50">

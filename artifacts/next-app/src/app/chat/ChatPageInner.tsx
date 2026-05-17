@@ -5,11 +5,11 @@ import { ChatView } from '@/components/chat/ChatView'
 
 export function ChatPageInner() {
   const params = useSearchParams()
-  const docId = params.get('docId')
+  const docId  = params.get('docId')
   const docName = params.get('docName') ?? undefined
 
   return (
-    <div className="h-full">
+    <div className="h-full flex flex-col">
       <ChatView activeDocumentId={docId} activeDocumentName={docName} />
     </div>
   )
